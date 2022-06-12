@@ -20,8 +20,6 @@ public:
 private:
     void _InitGlfw();
     void _CreateVulkanInstance();
-    void _CreateSurface();
-    void _CreateVulkanDevice();
 
     void _CleanupGlfw();
     void _CleanupVulkan();
