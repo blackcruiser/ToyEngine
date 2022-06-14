@@ -8,13 +8,13 @@
 #include <memory>
 #include <vector>
 
-
+class TEScene;
 
 class TERendererInterface
 {
 public:
 	virtual void Init(std::shared_ptr<TEDevice> device, std::shared_ptr<TEWindow> window) = 0;
-	virtual void RenderFrame() = 0;
+	virtual void RenderFrame(std::shared_ptr<TEScene> scene) = 0;
 	virtual void Cleanup() = 0;
 
 private:
@@ -35,11 +35,12 @@ public:
 	void CreateCommandBuffer();
 	void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
+	VkShaderModule CreateShaderModule(const std::vector<char>& code);
+
 	void RenderDepthPass();
 	void RenderMainPass(uint32_t imageIndex);
-	virtual void RenderFrame() override;
+	virtual void RenderFrame(std::shared_ptr<TEScene> scene) override;
 
-	VkShaderModule CreateShaderModule(const std::vector<char>& code);
 
 	virtual void Cleanup() override;
 

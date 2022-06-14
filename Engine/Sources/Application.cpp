@@ -1,5 +1,6 @@
 #include "Application.h"
 #include "Renderer.h"
+#include "Scene.h"
 
 #include <string>
 #include <stdexcept>
@@ -15,9 +16,6 @@ TEApplication::TEApplication() : _device(nullptr), _window(nullptr), _renderer(n
 
 void TEApplication::Init()
 {
-
- 
-
     _InitGlfw();
     _CreateVulkanInstance();
 
@@ -72,14 +70,15 @@ void TEApplication::_CreateVulkanInstance()
     }
 }
 
-
 void TEApplication::Run()
 {
+    std::shared_ptr<TEScene> scene = TEScene::CreateSampleScene();
+
     while (!glfwWindowShouldClose(_window->glfwWindow))
     {
         glfwPollEvents();
 
-        _renderer->RenderFrame();
+        _renderer->RenderFrame(scene);
     }
 
     vkDeviceWaitIdle(_device->vkDevice);
@@ -99,14 +98,12 @@ void TEApplication::Cleanup()
 void TEApplication::_CleanupVulkan()
 {
 
-
     if (_vkInstance != VK_NULL_HANDLE)
         vkDestroyInstance(_vkInstance, nullptr);
 }
 
 void TEApplication::_CleanupGlfw()
 {
-
 
     glfwTerminate();
 }

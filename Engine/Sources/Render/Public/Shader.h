@@ -2,11 +2,22 @@
 
 #include <vulkan/vulkan.h>
 
-class Shader
+#include <string>
+
+enum class EShaderType
+{
+    Vertex = 0,
+    Fragment
+};
+
+class TEShader
 {
 public:
-    Shader();
+    TEShader();
 
 private:
     VkShaderModule _shader;
-}
+
+    std::string _path;
+
+};

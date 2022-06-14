@@ -19,6 +19,13 @@ file(GLOB RenderIncludes "${RenderSourceDirectory}/Public/*.h")
 aux_source_directory(${RenderSourceDirectory} RenderSources)
 source_group(TREE ${RenderSourceDirectory} FILES ${RenderSources} ${RenderIncludes})
 
+## Scene Module
+set(SceneSourceDirectory ${EngineSourcesDirectory}/Scene)
+# should not use file(GLOB ...)
+file(GLOB SceneIncludes "${SceneSourceDirectory}/Public/*.h")
+aux_source_directory(${SceneSourceDirectory} SceneSources)
+source_group(TREE ${SceneSourceDirectory} FILES ${SceneSources} ${SceneIncludes})
+
 
 # ThirdParties
 set(ThirdPartiesSourcesDirectory ${CMAKE_CURRENT_LIST_DIR}/Engine/ThirdParties)
@@ -58,9 +65,9 @@ add_subdirectory(${ThirdPartiesSourcesDirectory}/glfw)
 file(GLOB EngineIncludes "${EngineSourcesDirectory}/*.h")
 aux_source_directory(${EngineSourcesDirectory} EngineSources)
 
-add_library(Engine ${RenderSources} ${RenderIncludes} ${EngineSources} ${EngineIncludes})
+add_library(Engine ${RenderSources} ${RenderIncludes} ${SceneSources} ${SceneIncludes} ${EngineSources} ${EngineIncludes})
 target_include_directories(Engine 
-                            PUBLIC ${RenderSourceDirectory}/Public ${EngineSourcesDirectory})
+                            PUBLIC ${RenderSourceDirectory}/Public ${SceneSourceDirectory}/Public ${EngineSourcesDirectory})
 target_link_libraries(Engine PUBLIC glfw ${Vulkan})
 
 

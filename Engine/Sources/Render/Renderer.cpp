@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "Scene.h"
 
 #include <stdexcept>
 #include <algorithm>
@@ -471,8 +472,10 @@ void TEForwardRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     }
 }
 
-void TEForwardRenderer::RenderFrame()
+void TEForwardRenderer::RenderFrame(std::shared_ptr<TEScene> scene)
 {
+    const std::vector<std::shared_ptr<TEObject>> &objects = scene->GetObjects();
+
     // if (_depthPipeline)
     //     RenderDepthPass();
     // if (_mainPipeline)
@@ -487,8 +490,6 @@ void TEForwardRenderer::RenderFrame()
 
 void TEForwardRenderer::RenderMainPass(uint32_t imageIndex)
 {
-
-
     VkSemaphore waitSemaphores[] = {_imageAvailableSemaphore};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSemaphore signalSemaphores[] = {_renderFinishedSemaphore};
@@ -523,8 +524,7 @@ void TEForwardRenderer::RenderMainPass(uint32_t imageIndex)
 void TEForwardRenderer::Cleanup()
 {
 
-
-    vkFreeCommandBuffers(_device->vkDevice, _vkCommandPool, 1,  &_vkCommandBuffer);
+    vkFreeCommandBuffers(_device->vkDevice, _vkCommandPool, 1, &_vkCommandBuffer);
     vkDestroyCommandPool(_device->vkDevice, _vkCommandPool, nullptr);
 
     vkDestroySemaphore(_device->vkDevice, _imageAvailableSemaphore, nullptr);
@@ -535,7 +535,7 @@ void TEForwardRenderer::Cleanup()
     vkDestroyPipeline(_device->vkDevice, _vkPipeline, nullptr);
     vkDestroyRenderPass(_device->vkDevice, _vkRenderPass, nullptr);
 
-    for (VkShaderModule& shaderModule : _vkShaderModules)
+    for (VkShaderModule &shaderModule : _vkShaderModules)
     {
         vkDestroyShaderModule(_device->vkDevice, shaderModule, nullptr);
     }
@@ -545,7 +545,7 @@ void TEForwardRenderer::Cleanup()
         vkDestroyImageView(_device->vkDevice, imageView, nullptr);
     }
 
-    for (VkFramebuffer& framebuffer : _vkFramebuffers)
+    for (VkFramebuffer &framebuffer : _vkFramebuffers)
     {
         vkDestroyFramebuffer(_device->vkDevice, framebuffer, nullptr);
     }
