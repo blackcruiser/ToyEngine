@@ -72,7 +72,7 @@ void TEApplication::_CreateVulkanInstance()
 
 void TEApplication::Run()
 {
-    std::shared_ptr<TEScene> scene = TEScene::CreateSampleScene();
+    TEPtr<TEScene> scene = TEScene::CreateSampleScene();
 
     while (!glfwWindowShouldClose(_window->glfwWindow))
     {

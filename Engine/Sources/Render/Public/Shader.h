@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-
 #include <string>
 
 enum class EShaderType
@@ -13,11 +11,10 @@ enum class EShaderType
 class TEShader
 {
 public:
-    TEShader();
+    TEShader(const std::string &path);
+
+    const std::string &GetPath();
 
 private:
-    VkShaderModule _shader;
-
     std::string _path;
-
 };

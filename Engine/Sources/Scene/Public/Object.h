@@ -7,6 +7,6 @@ class TEMaterial;
 class TEObject
 {
 public:
-    std::shared_ptr<TEMaterial> _material;
+    TEPtr<TEMaterial> _material;
     // std::vector<glm::vec3> vertices;
 };

@@ -1,0 +1,1 @@
+std::shared_ptr is too long to type, consider using Macro.

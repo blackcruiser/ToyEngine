@@ -7,47 +7,48 @@
 
 #include <memory>
 #include <vector>
+#include <map>
 
 class TEScene;
+class TEObject;
 
 class TERendererInterface
 {
 public:
-	virtual void Init(std::shared_ptr<TEDevice> device, std::shared_ptr<TEWindow> window) = 0;
-	virtual void RenderFrame(std::shared_ptr<TEScene> scene) = 0;
+	virtual void Init(TEPtr<TEDevice> device, TEPtr<TEWindow> window) = 0;
+	virtual void RenderFrame(TEPtr<TEScene> scene) = 0;
 	virtual void Cleanup() = 0;
 
 private:
-	
 };
-
 
 class TEForwardRenderer : public TERendererInterface
 {
 public:
-	virtual void Init(std::shared_ptr<TEDevice> device, std::shared_ptr<TEWindow> window) override;
+	virtual void Init(TEPtr<TEDevice> device, TEPtr<TEWindow> window) override;
 	void SelectSurfaceFormat();
 	void CreateRenderPass();
 	void CreateMainPipeline();
 	void CreateSwapchain(VkRenderPass renderPass);
-	
+
 	void CreateCommandPool();
 	void CreateCommandBuffer();
 	void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
-	VkShaderModule CreateShaderModule(const std::vector<char>& code);
+	VkShaderModule CreateShaderModule(const std::vector<char> &code);
 
+	void GatherObjects(TEPtr<TEScene> scene);
 	void RenderDepthPass();
 	void RenderMainPass(uint32_t imageIndex);
-	virtual void RenderFrame(std::shared_ptr<TEScene> scene) override;
-
+	virtual void RenderFrame(TEPtr<TEScene> scene) override;
 
 	virtual void Cleanup() override;
 
 private:
-	std::shared_ptr<TEDevice> _device;
-	std::shared_ptr<TEWindow> _window;
+	std::map<std::uintptr_t, TEPtrArr<TEObject>> _objectsToRender;
 
+	TEPtr<TEDevice> _device;
+	TEPtr<TEWindow> _window;
 
 	VkSurfaceFormatKHR _vkSurfaceFormat;
 	VkExtent2D _vkExtent;

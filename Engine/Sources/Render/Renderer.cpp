@@ -1,5 +1,7 @@
 #include "Renderer.h"
 #include "Scene.h"
+#include "Object.h"
+#include "Material.h"
 
 #include <stdexcept>
 #include <algorithm>
@@ -43,7 +45,7 @@ VkShaderModule TEForwardRenderer::CreateShaderModule(const std::vector<char> &co
     return shaderModule;
 }
 
-void TEForwardRenderer::Init(std::shared_ptr<TEDevice> device, std::shared_ptr<TEWindow> window)
+void TEForwardRenderer::Init(TEPtr<TEDevice> device, TEPtr<TEWindow> window)
 {
     _device = device;
     _window = window;
@@ -472,9 +474,24 @@ void TEForwardRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     }
 }
 
-void TEForwardRenderer::RenderFrame(std::shared_ptr<TEScene> scene)
+void TEForwardRenderer::GatherObjects(TEPtr<TEScene> scene)
 {
-    const std::vector<std::shared_ptr<TEObject>> &objects = scene->GetObjects();
+    const TEPtrArr<TEObject> &objects = scene->GetObjects();
+
+    for (auto &object : objects)
+    {
+        TEPtr<TEMaterial> material = object->_material;
+        std::uintptr_t address = reinterpret_cast<std::uintptr_t>(material.get());
+        if (_objectsToRender.find(address) == _objectsToRender.end())
+            _objectsToRender.emplace();
+        TEPtrArr<TEObject> &objectArr = _objectsToRender.at(address);
+        objectArr.push_back(object);
+    }
+}
+
+void TEForwardRenderer::RenderFrame(TEPtr<TEScene> scene)
+{
+    GatherObjects(scene);
 
     // if (_depthPipeline)
     //     RenderDepthPass();

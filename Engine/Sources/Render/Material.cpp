@@ -5,7 +5,7 @@ TEMaterial::TEMaterial()
 
 }
 
-std::shared_ptr<TEShader> TEMaterial::GetShader(const EShaderType &type)
+TEPtr<TEShader> TEMaterial::GetShader(const EShaderType &type)
 {
     if (_shaderMap.find(type) == _shaderMap.end())
         return nullptr;

@@ -1,16 +1,16 @@
 #pragma once
 
+#include "CommonDefine.h"
+
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
-
-#include <memory>
 
 class TEWindow;
 
 class TEDevice
 {
 public:
-    TEDevice(const VkInstance &vkInstance, std::shared_ptr<TEWindow> window);
+    TEDevice(const VkInstance &vkInstance, TEPtr<TEWindow> window);
 
     void Init();
     void Cleanup();
@@ -22,6 +22,6 @@ public:
     uint32_t graphicQueueFamilyIndex, presentQueueFamilyIndex;
 
 private:
-    std::shared_ptr<TEWindow> _window;
+    TEPtr<TEWindow> _window;
     VkInstance _vkInstance;
 };

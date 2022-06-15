@@ -7,8 +7,8 @@
 #include <string>
 #include <set>
 
-TEDevice::TEDevice(const VkInstance &vkInstance, std::shared_ptr<TEWindow> window) : _window(window), _vkInstance(vkInstance),
-                                                                                     vkPhysicalDevice(VK_NULL_HANDLE), vkDevice(VK_NULL_HANDLE), vkGraphicQueue(VK_NULL_HANDLE), vkPresentQueue(VK_NULL_HANDLE), graphicQueueFamilyIndex(std::numeric_limits<uint32_t>::max()), presentQueueFamilyIndex(std::numeric_limits<uint32_t>::max())
+TEDevice::TEDevice(const VkInstance &vkInstance, TEPtr<TEWindow> window) : _window(window), _vkInstance(vkInstance),
+                                                                           vkPhysicalDevice(VK_NULL_HANDLE), vkDevice(VK_NULL_HANDLE), vkGraphicQueue(VK_NULL_HANDLE), vkPresentQueue(VK_NULL_HANDLE), graphicQueueFamilyIndex(std::numeric_limits<uint32_t>::max()), presentQueueFamilyIndex(std::numeric_limits<uint32_t>::max())
 {
 }
 

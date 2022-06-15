@@ -25,9 +25,9 @@ private:
     void _CleanupVulkan();
 
 private:
-    std::shared_ptr<TEDevice> _device;
-    std::shared_ptr<TEWindow> _window;
-    std::shared_ptr<TERendererInterface> _renderer;
+    TEPtr<TEDevice> _device;
+    TEPtr<TEWindow> _window;
+    TEPtr<TERendererInterface> _renderer;
 
     VkInstance _vkInstance;
 };

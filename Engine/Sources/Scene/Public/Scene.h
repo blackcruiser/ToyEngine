@@ -1,22 +1,21 @@
 #pragma once
 
-#include <memory>
-#include <vector>
+#include "CommonDefine.h"
 
 class TEObject;
 
 class TEScene
 {
 public:
-    static std::shared_ptr<TEScene> CreateSampleScene();
+    static TEPtr<TEScene> CreateSampleScene();
 
 public:
     TEScene();
 
-    void AddObject(std::shared_ptr<TEObject> object);
+    void AddObject(TEPtr<TEObject> object);
 
-    const std::vector<std::shared_ptr<TEObject>> &GetObjects();
+    const TEPtrArr<TEObject> &GetObjects();
 
 private:
-    std::vector<std::shared_ptr<TEObject>> _objects;
+    TEPtrArr<TEObject> _objects;
 };
