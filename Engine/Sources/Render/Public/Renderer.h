@@ -1,16 +1,15 @@
 #pragma once
 
+#include "CommonDefine.h"
 #include "Device.h"
 #include "Window.h"
 
+#include <glm/glm.hpp>
 #include <vulkan/vulkan.h>
-
-#include <memory>
-#include <vector>
-#include <map>
 
 class TEScene;
 class TEObject;
+class TEMaterial;
 
 class TERendererInterface
 {
@@ -28,18 +27,21 @@ public:
 	virtual void Init(TEPtr<TEDevice> device, TEPtr<TEWindow> window) override;
 	void SelectSurfaceFormat();
 	void CreateRenderPass();
-	void CreateMainPipeline();
+	VkPipeline CreatePipeline(TEPtr<TEMaterial> material);
 	void CreateSwapchain(VkRenderPass renderPass);
 
 	void CreateCommandPool();
 	void CreateCommandBuffer();
-	void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
+	void CreateSemaphore();
+
+	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer, VkDeviceMemory &bufferMemory);
+	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
 	VkShaderModule CreateShaderModule(const std::vector<char> &code);
 
 	void GatherObjects(TEPtr<TEScene> scene);
-	void RenderDepthPass();
-	void RenderMainPass(uint32_t imageIndex);
 	virtual void RenderFrame(TEPtr<TEScene> scene) override;
 
 	virtual void Cleanup() override;
@@ -60,7 +62,11 @@ private:
 
 	VkRenderPass _vkRenderPass;
 	VkPipelineLayout _vkPipelineLayout;
-	VkPipeline _vkPipeline;
+	std::map<std::uintptr_t, VkPipeline> _pipelines;
+
+	VkBuffer _stagingBuffer, _vertexBuffer;
+	VkDeviceMemory _stagingBufferMemory, _vertexBufferMemory;
+	size_t _stagingBufferSize, _vertexBufferSize;
 
 	VkSemaphore _imageAvailableSemaphore, _renderFinishedSemaphore;
 	VkFence _inFlightFence;

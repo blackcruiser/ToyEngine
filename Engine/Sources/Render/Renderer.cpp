@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <algorithm>
 #include <fstream>
+#include <array>
+#include <cstddef>
 
 static std::vector<char> readFile(const std::string &filename)
 {
@@ -54,10 +56,11 @@ void TEForwardRenderer::Init(TEPtr<TEDevice> device, TEPtr<TEWindow> window)
 
     CreateRenderPass();
     CreateSwapchain(_vkRenderPass);
-    CreateMainPipeline();
 
     CreateCommandPool();
     CreateCommandBuffer();
+
+    CreateSemaphore();
 }
 
 void TEForwardRenderer::SelectSurfaceFormat()
@@ -128,7 +131,7 @@ void TEForwardRenderer::CreateRenderPass()
     }
 }
 
-void TEForwardRenderer::CreateMainPipeline()
+VkPipeline TEForwardRenderer::CreatePipeline(TEPtr<TEMaterial> material)
 {
     auto vertShaderCode = readFile("Shaders/VertexShader.spv");
     auto fragShaderCode = readFile("Shaders/FragmentShader.spv");
@@ -151,12 +154,29 @@ void TEForwardRenderer::CreateMainPipeline()
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vkVertexShaderStageCreateInfo, vkFragmentShaderStageCreateInfo};
 
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(glm::vec3);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    std::array<VkVertexInputAttributeDescription, 1> attributeDescriptions{};
+
+    attributeDescriptions[0].binding = 0;
+    attributeDescriptions[0].location = 0;
+    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[0].offset = 0;
+
+    // attributeDescriptions[1].binding = 0;
+    // attributeDescriptions[1].location = 1;
+    // attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    // attributeDescriptions[1].offset = offsetof(Vertex, color);
+
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -260,10 +280,17 @@ void TEForwardRenderer::CreateMainPipeline()
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
     pipelineInfo.basePipelineIndex = -1;              // Optional
 
-    if (vkCreateGraphicsPipelines(_device->vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_vkPipeline) != VK_SUCCESS)
+    VkPipeline vkPipeline;
+    if (vkCreateGraphicsPipelines(_device->vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vkPipeline) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create graphics pipeline!");
     }
+
+    return vkPipeline;
+}
+
+void TEForwardRenderer::CreateSemaphore()
+{
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -439,15 +466,112 @@ void TEForwardRenderer::CreateCommandBuffer()
     }
 }
 
-void TEForwardRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+void TEForwardRenderer::GatherObjects(TEPtr<TEScene> scene)
 {
+    const TEPtrArr<TEObject> &objects = scene->GetObjects();
+
+    for (auto &object : objects)
+    {
+        TEPtr<TEMaterial> material = object->_material;
+        std::uintptr_t address = reinterpret_cast<std::uintptr_t>(material.get());
+        if (_objectsToRender.find(address) == _objectsToRender.end())
+            _objectsToRender.emplace(address, TEPtrArr<TEObject>());
+        TEPtrArr<TEObject> &objectArr = _objectsToRender.at(address);
+        objectArr.push_back(object);
+    }
+}
+
+uint32_t TEForwardRenderer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(_device->vkPhysicalDevice, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+    {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("failed to find suitable memory type!");
+}
+
+void TEForwardRenderer::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer, VkDeviceMemory &bufferMemory)
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(_device->vkDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create buffer!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(_device->vkDevice, buffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(_device->vkDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to allocate buffer memory!");
+    }
+
+    vkBindBufferMemory(_device->vkDevice, buffer, bufferMemory, 0);
+}
+
+void TEForwardRenderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+{
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = _vkCommandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(_device->vkDevice, &allocInfo, &commandBuffer);
+
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to begin recording command buffer!");
-    }
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkBufferCopy copyRegion{};
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(_device->vkGraphicQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(_device->vkGraphicQueue);
+
+    vkFreeCommandBuffers(_device->vkDevice, _vkCommandPool, 1, &commandBuffer);
+}
+
+void TEForwardRenderer::RenderFrame(TEPtr<TEScene> scene)
+{
+    GatherObjects(scene);
+
+    vkWaitForFences(_device->vkDevice, 1, &_inFlightFence, VK_TRUE, UINT64_MAX);
+    vkResetFences(_device->vkDevice, 1, &_inFlightFence);
+
+    uint32_t imageIndex;
+    vkAcquireNextImageKHR(_device->vkDevice, _vkSwapchain, UINT64_MAX, _imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -460,53 +584,97 @@ void TEForwardRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
 
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    if (vkBeginCommandBuffer(_vkCommandBuffer, &beginInfo) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to begin recording command buffer!");
+    }
 
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vkPipeline);
+    vkCmdBeginRenderPass(_vkCommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    for (auto &pair : _objectsToRender)
+    {
+        auto &objectArr = pair.second;
+        if (objectArr.empty())
+            continue;
 
-    vkCmdEndRenderPass(commandBuffer);
+        TEPtr<TEMaterial> material = objectArr[0]->_material;
 
-    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
+        VkPipeline vkPipeline;
+
+        std::uintptr_t address = reinterpret_cast<std::uintptr_t>(material.get());
+        if (_pipelines.find(address) == _pipelines.end())
+        {
+            vkPipeline = CreatePipeline(material);
+            _pipelines.insert(std::make_pair(address, vkPipeline));
+        }
+        else
+        {
+            vkPipeline = _pipelines[address];
+        }
+
+        size_t totalBufferSize = 0;
+        for (auto &object : objectArr)
+        {
+            totalBufferSize = object->vertices.size() * sizeof(glm::vec3);
+        }
+
+        if (_stagingBuffer != VK_NULL_HANDLE && totalBufferSize > _stagingBufferSize)
+        {
+            vkFreeMemory(_device->vkDevice, _stagingBufferMemory, nullptr);
+            vkDestroyBuffer(_device->vkDevice, _stagingBuffer, nullptr);
+            _stagingBuffer = VK_NULL_HANDLE;
+        }
+
+        if (_stagingBuffer == VK_NULL_HANDLE)
+        {
+            createBuffer(totalBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _stagingBuffer, _stagingBufferMemory);
+        }
+
+        if (_vertexBuffer != VK_NULL_HANDLE && totalBufferSize > _vertexBufferSize)
+        {
+            vkFreeMemory(_device->vkDevice, _vertexBufferMemory, nullptr);
+            vkDestroyBuffer(_device->vkDevice, _vertexBuffer, nullptr);
+            _vertexBuffer = VK_NULL_HANDLE;
+        }
+
+        if (_vertexBuffer == VK_NULL_HANDLE)
+        {
+            createBuffer(totalBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _vertexBuffer, _vertexBufferMemory);
+        }
+
+        void *data;
+        vkMapMemory(_device->vkDevice, _stagingBufferMemory, 0, totalBufferSize, 0, &data);
+
+        uint8_t *dataPtr = reinterpret_cast<uint8_t *>(data);
+        uint32_t vertexCounts = 0;
+        for (auto &object : objectArr)
+        {
+            size_t bufferSize = object->vertices.size() * sizeof(glm::vec3);
+            memcpy(dataPtr, object->vertices.data(), bufferSize);
+            dataPtr = dataPtr + bufferSize;
+            vertexCounts += object->vertices.size();
+        }
+
+        vkUnmapMemory(_device->vkDevice, _stagingBufferMemory);
+
+        copyBuffer(_stagingBuffer, _vertexBuffer, totalBufferSize);
+
+        vkCmdBindPipeline(_vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline);
+
+        VkBuffer vertexBuffers[] = {_vertexBuffer};
+        VkDeviceSize offsets[] = {0};
+
+        vkCmdBindVertexBuffers(_vkCommandBuffer, 0, 1, vertexBuffers, offsets);
+        vkCmdDraw(_vkCommandBuffer, vertexCounts, 1, 0, 0);
+    }
+
+    vkCmdEndRenderPass(_vkCommandBuffer);
+
+    if (vkEndCommandBuffer(_vkCommandBuffer) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to record command buffer!");
     }
-}
 
-void TEForwardRenderer::GatherObjects(TEPtr<TEScene> scene)
-{
-    const TEPtrArr<TEObject> &objects = scene->GetObjects();
-
-    for (auto &object : objects)
-    {
-        TEPtr<TEMaterial> material = object->_material;
-        std::uintptr_t address = reinterpret_cast<std::uintptr_t>(material.get());
-        if (_objectsToRender.find(address) == _objectsToRender.end())
-            _objectsToRender.emplace();
-        TEPtrArr<TEObject> &objectArr = _objectsToRender.at(address);
-        objectArr.push_back(object);
-    }
-}
-
-void TEForwardRenderer::RenderFrame(TEPtr<TEScene> scene)
-{
-    GatherObjects(scene);
-
-    // if (_depthPipeline)
-    //     RenderDepthPass();
-    // if (_mainPipeline)
-    vkWaitForFences(_device->vkDevice, 1, &_inFlightFence, VK_TRUE, UINT64_MAX);
-    vkResetFences(_device->vkDevice, 1, &_inFlightFence);
-
-    uint32_t imageIndex;
-    vkAcquireNextImageKHR(_device->vkDevice, _vkSwapchain, UINT64_MAX, _imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
-    RecordCommandBuffer(_vkCommandBuffer, imageIndex);
-    RenderMainPass(imageIndex);
-}
-
-void TEForwardRenderer::RenderMainPass(uint32_t imageIndex)
-{
     VkSemaphore waitSemaphores[] = {_imageAvailableSemaphore};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSemaphore signalSemaphores[] = {_renderFinishedSemaphore};
@@ -541,6 +709,12 @@ void TEForwardRenderer::RenderMainPass(uint32_t imageIndex)
 void TEForwardRenderer::Cleanup()
 {
 
+    vkFreeMemory(_device->vkDevice, _vertexBufferMemory, nullptr);
+    vkDestroyBuffer(_device->vkDevice, _vertexBuffer, nullptr);
+
+    vkFreeMemory(_device->vkDevice, _stagingBufferMemory, nullptr);
+    vkDestroyBuffer(_device->vkDevice, _stagingBuffer, nullptr);
+
     vkFreeCommandBuffers(_device->vkDevice, _vkCommandPool, 1, &_vkCommandBuffer);
     vkDestroyCommandPool(_device->vkDevice, _vkCommandPool, nullptr);
 
@@ -549,7 +723,10 @@ void TEForwardRenderer::Cleanup()
     vkDestroyFence(_device->vkDevice, _inFlightFence, nullptr);
 
     vkDestroyPipelineLayout(_device->vkDevice, _vkPipelineLayout, nullptr);
-    vkDestroyPipeline(_device->vkDevice, _vkPipeline, nullptr);
+
+    for (auto iter = _pipelines.begin(); iter != _pipelines.end(); iter++)
+        vkDestroyPipeline(_device->vkDevice, iter->second, nullptr);
+
     vkDestroyRenderPass(_device->vkDevice, _vkRenderPass, nullptr);
 
     for (VkShaderModule &shaderModule : _vkShaderModules)

@@ -30,7 +30,6 @@ source_group(TREE ${SceneSourceDirectory} FILES ${SceneSources} ${SceneIncludes}
 # ThirdParties
 set(ThirdPartiesSourcesDirectory ${CMAKE_CURRENT_LIST_DIR}/Engine/ThirdParties)
 
-
 ## Vulkan
 set(Vulkan "Vulkan::Vulkan")
 if (NOT CMAKE_VERSION VERSION_LESS 3.7.0)
@@ -39,7 +38,7 @@ if (NOT CMAKE_VERSION VERSION_LESS 3.7.0)
 endif()
 
 if(Vulkan_FOUND)
-
+    set(VulkanIncludePath ${Vulkan_INCLUDE_DIRS})
 elseif(DEFINED ENV{VK_SDK_PATH})
     set(VulkanIncludePath $ENV{VK_SDK_PATH}/Include)
     set(VulkanLibPath $ENV{VK_SDK_PATH}/Lib)
@@ -52,6 +51,8 @@ else()
     message(ERROR "Unable to locate Vulkan SDK")
 endif()
 
+## GLM
+add_subdirectory(${ThirdPartiesSourcesDirectory}/glm)
 
 ## GLFW
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
@@ -68,7 +69,7 @@ aux_source_directory(${EngineSourcesDirectory} EngineSources)
 add_library(Engine ${RenderSources} ${RenderIncludes} ${SceneSources} ${SceneIncludes} ${EngineSources} ${EngineIncludes})
 target_include_directories(Engine 
                             PUBLIC ${RenderSourceDirectory}/Public ${SceneSourceDirectory}/Public ${EngineSourcesDirectory})
-target_link_libraries(Engine PUBLIC glfw ${Vulkan})
+target_link_libraries(Engine PUBLIC glfw glm::glm ${Vulkan})
 
 
 # Samples
