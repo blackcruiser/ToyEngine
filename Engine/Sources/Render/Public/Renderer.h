@@ -26,20 +26,11 @@ class TEForwardRenderer : public TERendererInterface
 public:
 	virtual void Init(TEPtr<TEDevice> device, TEPtr<TEWindow> window) override;
 	void SelectSurfaceFormat();
-	void CreateRenderPass();
+
 	VkPipeline CreatePipeline(TEPtr<TEMaterial> material);
 	void CreateSwapchain(VkRenderPass renderPass);
 
-	void CreateCommandPool();
-	void CreateCommandBuffer();
-
-	void CreateSemaphore();
-
-	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
-	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer, VkDeviceMemory &bufferMemory);
-	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-
-	VkShaderModule CreateShaderModule(const std::vector<char> &code);
+	void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
 	void GatherObjects(TEPtr<TEScene> scene);
 	virtual void RenderFrame(TEPtr<TEScene> scene) override;
