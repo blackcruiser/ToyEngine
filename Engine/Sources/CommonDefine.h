@@ -14,4 +14,7 @@ template<typename T>
 using TEPtr = std::shared_ptr<T>;
 
 template<typename T>
+using TEWeakPtr = std::weak_ptr<T>;
+
+template<typename T>
 using TEPtrArr = std::vector<std::shared_ptr<T>>;

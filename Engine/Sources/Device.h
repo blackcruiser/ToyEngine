@@ -5,46 +5,69 @@
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 
-class TEWindow;
+class TEGPU;
+class TESurface;
+class TECommandPool;
 
 class TEDevice
 {
 public:
-    TEDevice(const VkInstance &vkInstance, TEPtr<TEWindow> window);
+    TEDevice(TEPtr<TEGPU> GPU, TEPtr<TESurface> surface);
 
     void Init();
     void Cleanup();
 
-    VkCommandPool CreateCommandPool(uint32_t queueFamilyIndex);
-    VkCommandBuffer CreateCommandBuffer(const VkCommandPool &commandPool);
+    TEPtr<TECommandPool> CreateCommandPool(TEPtr<TEDevice> device);
+    void DestroyCommandPool(TEPtr<TECommandPool> commandPool);
 
     VkBuffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage);
+    void DestroyBuffer(VkBuffer buffer);
+
     VkDeviceMemory AllocateAndBindBufferMemory(VkBuffer buffer, VkMemoryPropertyFlags properties);
-    uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+    void FreeMemmory(VkDeviceMemory deviceMemory);
 
     VkSemaphore CreateSemaphore();
+    void DestroySemaphore(VkSemaphore semaphore);
+
     VkFence CreateFence(bool isSignaled);
+    void DestroyFence(VkFence fence);
 
     VkShaderModule CreateShaderModule(const std::vector<char> &code);
+    void DestroyShaderModule(VkShaderModule shaderModule);
 
     VkImageView CreateImageView(VkImage image, VkFormat format);
+    void DestroyImageView(VkImageView imageView);
 
     VkFramebuffer CreateFramebuffer(VkRenderPass renderPass, const std::vector<VkImageView> imageViewArr, uint32_t width, uint32_t height);
+    void DestroyFramebuffer(VkFramebuffer framebuffer);
 
     VkSwapchainKHR CreateSwapchain(uint32_t imageCount, VkFormat imageFormat, VkColorSpaceKHR colorSpace, VkExtent2D extent, VkSurfaceTransformFlagBitsKHR preTransform, VkPresentModeKHR presentMode);
+    void DestroySwapchain(VkSwapchainKHR swapchain);
 
     VkPipelineLayout CreatePipelineLayout();
+    void DestroyPipelineLayout(VkPipelineLayout pipelineLayout);
+
     VkPipeline CreateGraphicPipeline(VkShaderModule vertexShaderModule, VkShaderModule fragmentShaderModule, VkExtent2D extent, VkPipelineLayout pipelineLayout, VkRenderPass renderPass);
+    void DestroyPipeline(VkPipeline pipeline);
 
     VkRenderPass CreateRenderPass(VkFormat format);
+    void DestroyRenderPass(VkRenderPass renderPass);
 
-public:
-    VkPhysicalDevice vkPhysicalDevice;
-    VkDevice vkDevice;
-    VkQueue vkGraphicQueue, vkPresentQueue;
-    uint32_t graphicQueueFamilyIndex, presentQueueFamilyIndex;
+    void WaitIdle();
+
+    VkDevice GetRawDevice();
+
+    VkQueue GetGraphicQueue();
+    VkQueue GetPresentQueue();
+
+    uint32_t GetGraphicQueueFamilyIndex();
+    uint32_t GetPresentQueueFamilyIndex();
 
 private:
-    TEPtr<TEWindow> _window;
-    VkInstance _vkInstance;
+    VkDevice _vkDevice;
+    VkQueue _vkGraphicQueue, _vkPresentQueue;
+    uint32_t _graphicQueueFamilyIndex, _presentQueueFamilyIndex;
+
+    TEPtr<TEGPU> _GPU;
+    TEPtr<TESurface> _surface;
 };

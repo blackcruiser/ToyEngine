@@ -1,5 +1,9 @@
 #include "Application.h"
 #include "Renderer.h"
+#include "GPU.h"
+#include "Window.h"
+#include "Device.h"
+#include "Surface.h"
 #include "Scene.h"
 
 #include <string>
@@ -19,14 +23,19 @@ void TEApplication::Init()
     _InitGlfw();
     _CreateVulkanInstance();
 
-    _window = std::make_shared<TEWindow>(_vkInstance);
+    _window = std::make_shared<TEWindow>();
     _window->Init(AppName, kWidth, kHeight);
 
-    _device = std::make_shared<TEDevice>(_vkInstance, _window);
-    _device->Init();
+    _GPU = std::make_shared<TEGPU>(_vkInstance);
+    _GPU->Init();
 
-    _renderer = std::make_shared<TEForwardRenderer>();
-    _renderer->Init(_device, _window);
+    _surface = std::make_shared<TESurface>(_vkInstance, _GPU, _window);
+    _surface->Init();
+
+    _device = _GPU->CreateDevice(_GPU, _surface);
+
+    _renderer = std::make_shared<TEForwardRenderer>(_device, _surface);
+    _renderer->Init();
 }
 
 void TEApplication::_InitGlfw()
@@ -74,14 +83,14 @@ void TEApplication::Run()
 {
     TEPtr<TEScene> scene = TEScene::CreateSampleScene();
 
-    while (!glfwWindowShouldClose(_window->glfwWindow))
+    while (!_window->ShouldClose())
     {
         glfwPollEvents();
 
         _renderer->RenderFrame(scene);
     }
 
-    vkDeviceWaitIdle(_device->vkDevice);
+    _device->WaitIdle();
 }
 
 void TEApplication::Cleanup()
@@ -89,6 +98,7 @@ void TEApplication::Cleanup()
     _renderer->Cleanup();
 
     _device->Cleanup();
+    _surface->Cleanup();
     _window->Cleanup();
 
     _CleanupVulkan();

@@ -1,22 +1,23 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 #include <string>
 
 class TEWindow
 {
 public:
-    TEWindow(VkInstance vkInstance);
+    TEWindow();
 
     void Init(const std::string &appName, int width, int height);
     void Cleanup();
 
-public:
-    GLFWwindow *glfwWindow;
-    VkSurfaceKHR vkSurface;
+    bool ShouldClose();
+
+    GLFWwindow *GetRawWindow();
+    glm::ivec2 GetFramebufferSize();
 
 private:
-    VkInstance _vkInstance;
+    GLFWwindow *_glfwWindow;
 };

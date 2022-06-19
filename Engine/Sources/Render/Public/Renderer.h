@@ -10,11 +10,13 @@
 class TEScene;
 class TEObject;
 class TEMaterial;
+class TECommandPool;
+class TECommandBuffer;
 
 class TERendererInterface
 {
 public:
-	virtual void Init(TEPtr<TEDevice> device, TEPtr<TEWindow> window) = 0;
+	virtual void Init() = 0;
 	virtual void RenderFrame(TEPtr<TEScene> scene) = 0;
 	virtual void Cleanup() = 0;
 
@@ -24,8 +26,8 @@ private:
 class TEForwardRenderer : public TERendererInterface
 {
 public:
-	virtual void Init(TEPtr<TEDevice> device, TEPtr<TEWindow> window) override;
-	void SelectSurfaceFormat();
+	TEForwardRenderer(TEPtr<TEDevice> device, TEPtr<TESurface> surface);
+	virtual void Init() override;
 
 	VkPipeline CreatePipeline(TEPtr<TEMaterial> material);
 	void CreateSwapchain(VkRenderPass renderPass);
@@ -41,10 +43,8 @@ private:
 	std::map<std::uintptr_t, TEPtrArr<TEObject>> _objectsToRender;
 
 	TEPtr<TEDevice> _device;
-	TEPtr<TEWindow> _window;
+	TEPtr<TESurface> _surface;
 
-	VkSurfaceFormatKHR _vkSurfaceFormat;
-	VkExtent2D _vkExtent;
 	VkSwapchainKHR _vkSwapchain;
 	std::vector<VkFramebuffer> _vkFramebuffers;
 	std::vector<VkImage> _vkImages;
@@ -62,6 +62,6 @@ private:
 	VkSemaphore _imageAvailableSemaphore, _renderFinishedSemaphore;
 	VkFence _inFlightFence;
 
-	VkCommandPool _vkCommandPool;
-	VkCommandBuffer _vkCommandBuffer;
+	TEPtr<TECommandPool> _commandPool;
+	TECommandBuffer *_commandBuffer;
 };

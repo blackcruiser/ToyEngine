@@ -1,5 +1,7 @@
 #include "Device.h"
-#include "Window.h"
+#include "GPU.h"
+#include "Surface.h"
+#include "CommandPool.h"
 
 #include <limits>
 #include <stdexcept>
@@ -8,72 +10,31 @@
 #include <array>
 #include <glm/glm.hpp>
 
-TEDevice::TEDevice(const VkInstance &vkInstance, TEPtr<TEWindow> window) : _window(window), _vkInstance(vkInstance),
-                                                                           vkPhysicalDevice(VK_NULL_HANDLE), vkDevice(VK_NULL_HANDLE), vkGraphicQueue(VK_NULL_HANDLE), vkPresentQueue(VK_NULL_HANDLE), graphicQueueFamilyIndex(std::numeric_limits<uint32_t>::max()), presentQueueFamilyIndex(std::numeric_limits<uint32_t>::max())
+TEDevice::TEDevice(TEPtr<TEGPU> GPU, TEPtr<TESurface> surface) : _GPU(GPU), _surface(surface),
+                                                                 _vkDevice(VK_NULL_HANDLE), _vkGraphicQueue(VK_NULL_HANDLE), _vkPresentQueue(VK_NULL_HANDLE), _graphicQueueFamilyIndex(std::numeric_limits<uint32_t>::max()), _presentQueueFamilyIndex(std::numeric_limits<uint32_t>::max())
 {
 }
 
 void TEDevice::Init()
 {
-    // Physical Device
-    uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(_vkInstance, &deviceCount, nullptr);
-    if (deviceCount == 0)
-    {
-        throw std::runtime_error("no physiccal device!");
-    }
-    std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(_vkInstance, &deviceCount, devices.data());
-
-    const std::vector<const char *> deviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-    vkPhysicalDevice = VK_NULL_HANDLE;
-    for (size_t i = 0; i < devices.size(); i++)
-    {
-        const VkPhysicalDevice &vkCurrentDevice = devices[i];
-        uint32_t extensionCount = 0;
-        vkEnumerateDeviceExtensionProperties(vkCurrentDevice, nullptr, &extensionCount, nullptr);
-
-        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-        vkEnumerateDeviceExtensionProperties(vkCurrentDevice, nullptr, &extensionCount, availableExtensions.data());
-
-        std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-
-        for (const auto &extension : availableExtensions)
-            requiredExtensions.erase(extension.extensionName);
-
-        if (requiredExtensions.empty())
-        {
-            vkPhysicalDevice = devices[i];
-            break;
-        }
-    }
-
     // Queue
-    uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(vkPhysicalDevice, &queueFamilyCount, nullptr);
-
-    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(vkPhysicalDevice, &queueFamilyCount, queueFamilies.data());
-
-    for (size_t i = 0; i < queueFamilies.size(); i++)
+    std::vector<VkQueueFamilyProperties> queueFamilyProperties = _GPU->GetQueueFamilyProperties();
+    for (size_t i = 0; i < queueFamilyProperties.size(); i++)
     {
-        if (graphicQueueFamilyIndex == std::numeric_limits<uint32_t>::max() && queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-            graphicQueueFamilyIndex = i;
+        if (_graphicQueueFamilyIndex == std::numeric_limits<uint32_t>::max() && queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            _graphicQueueFamilyIndex = i;
 
-        VkBool32 isSupported;
-        vkGetPhysicalDeviceSurfaceSupportKHR(vkPhysicalDevice, i, _window->vkSurface, &isSupported);
-        if (presentQueueFamilyIndex == std::numeric_limits<uint32_t>::max() && isSupported)
-            presentQueueFamilyIndex = i;
+        if (_presentQueueFamilyIndex == std::numeric_limits<uint32_t>::max() && _GPU->isSurfaceSupported(i, _surface))
+            _presentQueueFamilyIndex = i;
     }
 
-    if (graphicQueueFamilyIndex >= queueFamilies.size())
+    if (_graphicQueueFamilyIndex >= queueFamilyProperties.size())
     {
         throw std::runtime_error("can't find Device Queue!");
     }
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = {graphicQueueFamilyIndex, presentQueueFamilyIndex};
+    std::set<uint32_t> uniqueQueueFamilies = {_graphicQueueFamilyIndex, _presentQueueFamilyIndex};
 
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies)
@@ -86,6 +47,7 @@ void TEDevice::Init()
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
+    const std::vector<const char *> deviceExtensions = _GPU->GetExtensions();
     VkPhysicalDeviceFeatures deviceFeatures{};
 
     VkDeviceCreateInfo vkDeviceCreateInfo{};
@@ -96,47 +58,28 @@ void TEDevice::Init()
     vkDeviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
     vkDeviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
 
-    if (vkCreateDevice(vkPhysicalDevice, &vkDeviceCreateInfo, nullptr, &vkDevice) != VkResult::VK_SUCCESS)
+    if (vkCreateDevice(_GPU->GetRawPhysicalDevice(), &vkDeviceCreateInfo, nullptr, &_vkDevice) != VkResult::VK_SUCCESS)
     {
         throw std::runtime_error("create device fail!");
     }
 
     // Queue
-    vkGetDeviceQueue(vkDevice, graphicQueueFamilyIndex, 0, &vkGraphicQueue);
-    vkGetDeviceQueue(vkDevice, presentQueueFamilyIndex, 0, &vkPresentQueue);
+    vkGetDeviceQueue(_vkDevice, _graphicQueueFamilyIndex, 0, &_vkGraphicQueue);
+    vkGetDeviceQueue(_vkDevice, _presentQueueFamilyIndex, 0, &_vkPresentQueue);
 }
 
-VkCommandPool TEDevice::CreateCommandPool(uint32_t queueFamilyIndex)
+void TEDevice::Cleanup()
 {
-    VkCommandPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolInfo.queueFamilyIndex = queueFamilyIndex;
+    if (_vkDevice != VK_NULL_HANDLE)
+        vkDestroyDevice(_vkDevice, nullptr);
+}
 
-    VkCommandPool commandPool;
-    if (vkCreateCommandPool(vkDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to create command pool!");
-    }
+TEPtr<TECommandPool> TEDevice::CreateCommandPool(TEPtr<TEDevice> device)
+{
+    TEPtr<TECommandPool> commandPool = std::make_shared<TECommandPool>(device);
+    commandPool->Init();
 
     return commandPool;
-}
-
-VkCommandBuffer TEDevice::CreateCommandBuffer(const VkCommandPool &commandPool)
-{
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = commandPool;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 1;
-
-    VkCommandBuffer commandBuffer;
-    if (vkAllocateCommandBuffers(vkDevice, &allocInfo, &commandBuffer) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to allocate command buffers!");
-    }
-
-    return commandBuffer;
 }
 
 VkBuffer TEDevice::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage)
@@ -148,7 +91,7 @@ VkBuffer TEDevice::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage)
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     VkBuffer buffer;
-    if (vkCreateBuffer(vkDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+    if (vkCreateBuffer(_vkDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create buffer!");
     }
@@ -156,44 +99,38 @@ VkBuffer TEDevice::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage)
     return buffer;
 }
 
+void TEDevice::DestroyBuffer(VkBuffer buffer)
+{
+    vkDestroyBuffer(_vkDevice, buffer, nullptr);
+}
+
 VkDeviceMemory TEDevice::AllocateAndBindBufferMemory(VkBuffer buffer, VkMemoryPropertyFlags properties)
 {
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(vkDevice, buffer, &memRequirements);
+    vkGetBufferMemoryRequirements(_vkDevice, buffer, &memRequirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
+    allocInfo.memoryTypeIndex = _GPU->FindMemoryType(memRequirements.memoryTypeBits, properties);
 
-    VkDeviceMemory bufferMemory;
-    if (vkAllocateMemory(vkDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+    VkDeviceMemory vkDeviceMemory;
+    if (vkAllocateMemory(_vkDevice, &allocInfo, nullptr, &vkDeviceMemory) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to allocate buffer memory!");
     }
 
-    if (vkBindBufferMemory(vkDevice, buffer, bufferMemory, 0) != VK_SUCCESS)
+    if (vkBindBufferMemory(_vkDevice, buffer, vkDeviceMemory, 0) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to bind buffer memory!");
     }
 
-    return bufferMemory;
+    return vkDeviceMemory;
 }
 
-uint32_t TEDevice::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+void TEDevice::FreeMemmory(VkDeviceMemory deviceMemory)
 {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(vkPhysicalDevice, &memProperties);
-
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
-    {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
-        {
-            return i;
-        }
-    }
-
-    throw std::runtime_error("failed to find suitable memory type!");
+    vkFreeMemory(_vkDevice, deviceMemory, nullptr);
 }
 
 VkSemaphore TEDevice::CreateSemaphore()
@@ -202,13 +139,18 @@ VkSemaphore TEDevice::CreateSemaphore()
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
     VkSemaphore semaphore;
-    if (vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
+    if (vkCreateSemaphore(_vkDevice, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
 
     {
         throw std::runtime_error("failed to create semaphore!");
     }
 
     return semaphore;
+}
+
+void TEDevice::DestroySemaphore(VkSemaphore semaphore)
+{
+    vkDestroySemaphore(_vkDevice, semaphore, nullptr);
 }
 
 VkFence TEDevice::CreateFence(bool isSignaled)
@@ -218,12 +160,17 @@ VkFence TEDevice::CreateFence(bool isSignaled)
     fenceInfo.flags = isSignaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
 
     VkFence fence;
-    if (vkCreateFence(vkDevice, &fenceInfo, nullptr, &fence) != VK_SUCCESS)
+    if (vkCreateFence(_vkDevice, &fenceInfo, nullptr, &fence) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create fence!");
     }
 
     return fence;
+}
+
+void TEDevice::DestroyFence(VkFence fence)
+{
+    vkDestroyFence(_vkDevice, fence, nullptr);
 }
 
 VkShaderModule TEDevice::CreateShaderModule(const std::vector<char> &code)
@@ -234,12 +181,17 @@ VkShaderModule TEDevice::CreateShaderModule(const std::vector<char> &code)
     createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
 
     VkShaderModule shaderModule;
-    if (vkCreateShaderModule(vkDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+    if (vkCreateShaderModule(_vkDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create shader module!");
     }
 
     return shaderModule;
+}
+
+void TEDevice::DestroyShaderModule(VkShaderModule shaderModule)
+{
+    vkDestroyShaderModule(_vkDevice, shaderModule, nullptr);
 }
 
 VkImageView TEDevice::CreateImageView(VkImage image, VkFormat format)
@@ -260,12 +212,17 @@ VkImageView TEDevice::CreateImageView(VkImage image, VkFormat format)
     imageViewCreateInfo.subresourceRange.layerCount = 1;
 
     VkImageView imageView;
-    if (vkCreateImageView(vkDevice, &imageViewCreateInfo, nullptr, &imageView) != VK_SUCCESS)
+    if (vkCreateImageView(_vkDevice, &imageViewCreateInfo, nullptr, &imageView) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create image views!");
     }
 
     return imageView;
+}
+
+void TEDevice::DestroyImageView(VkImageView imageView)
+{
+    vkDestroyImageView(_vkDevice, imageView, nullptr);
 }
 
 VkFramebuffer TEDevice::CreateFramebuffer(VkRenderPass renderPass, const std::vector<VkImageView> imageViewArr, uint32_t width, uint32_t height)
@@ -280,18 +237,23 @@ VkFramebuffer TEDevice::CreateFramebuffer(VkRenderPass renderPass, const std::ve
     framebufferInfo.layers = 1;
 
     VkFramebuffer framebuffer;
-    if (vkCreateFramebuffer(vkDevice, &framebufferInfo, nullptr, &framebuffer) != VK_SUCCESS)
+    if (vkCreateFramebuffer(_vkDevice, &framebufferInfo, nullptr, &framebuffer) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create framebuffer!");
     }
     return framebuffer;
 }
 
+void TEDevice::DestroyFramebuffer(VkFramebuffer framebuffer)
+{
+    vkDestroyFramebuffer(_vkDevice, framebuffer, nullptr);
+}
+
 VkSwapchainKHR TEDevice::CreateSwapchain(uint32_t imageCount, VkFormat imageFormat, VkColorSpaceKHR colorSpace, VkExtent2D extent, VkSurfaceTransformFlagBitsKHR preTransform, VkPresentModeKHR presentMode)
 {
     VkSwapchainCreateInfoKHR vkSwapchainCreateInfo{};
     vkSwapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    vkSwapchainCreateInfo.surface = _window->vkSurface;
+    vkSwapchainCreateInfo.surface = _surface->GetRawSurface();
     vkSwapchainCreateInfo.minImageCount = imageCount;
     vkSwapchainCreateInfo.imageFormat = imageFormat;
     vkSwapchainCreateInfo.imageColorSpace = colorSpace;
@@ -299,9 +261,9 @@ VkSwapchainKHR TEDevice::CreateSwapchain(uint32_t imageCount, VkFormat imageForm
     vkSwapchainCreateInfo.imageArrayLayers = 1;
     vkSwapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    if (graphicQueueFamilyIndex != presentQueueFamilyIndex)
+    if (_graphicQueueFamilyIndex != _presentQueueFamilyIndex)
     {
-        uint32_t queueFamilyIndexs[] = {graphicQueueFamilyIndex, presentQueueFamilyIndex};
+        uint32_t queueFamilyIndexs[] = {_graphicQueueFamilyIndex, _presentQueueFamilyIndex};
         vkSwapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         vkSwapchainCreateInfo.queueFamilyIndexCount = 2;
         vkSwapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndexs;
@@ -319,12 +281,17 @@ VkSwapchainKHR TEDevice::CreateSwapchain(uint32_t imageCount, VkFormat imageForm
     vkSwapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
 
     VkSwapchainKHR swapchain;
-    if (vkCreateSwapchainKHR(vkDevice, &vkSwapchainCreateInfo, nullptr, &swapchain) != VK_SUCCESS)
+    if (vkCreateSwapchainKHR(_vkDevice, &vkSwapchainCreateInfo, nullptr, &swapchain) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create swap chain!");
     }
 
     return swapchain;
+}
+
+void TEDevice::DestroySwapchain(VkSwapchainKHR swapchain)
+{
+    vkDestroySwapchainKHR(_vkDevice, swapchain, nullptr);
 }
 
 VkPipelineLayout TEDevice::CreatePipelineLayout()
@@ -335,12 +302,17 @@ VkPipelineLayout TEDevice::CreatePipelineLayout()
     pipelineLayoutInfo.pushConstantRangeCount = 0;
 
     VkPipelineLayout pipelineLayout;
-    if (vkCreatePipelineLayout(vkDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(_vkDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create pipeline layout!");
     }
 
     return pipelineLayout;
+}
+
+void TEDevice::DestroyPipelineLayout(VkPipelineLayout pipelineLayout)
+{
+    vkDestroyPipelineLayout(_vkDevice, pipelineLayout, nullptr);
 }
 
 VkPipeline TEDevice::CreateGraphicPipeline(VkShaderModule vertexShaderModule, VkShaderModule fragmentShaderModule, VkExtent2D extent, VkPipelineLayout pipelineLayout, VkRenderPass renderPass)
@@ -476,12 +448,17 @@ VkPipeline TEDevice::CreateGraphicPipeline(VkShaderModule vertexShaderModule, Vk
     pipelineInfo.basePipelineIndex = -1;              // Optional
 
     VkPipeline vkPipeline;
-    if (vkCreateGraphicsPipelines(vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vkPipeline) != VK_SUCCESS)
+    if (vkCreateGraphicsPipelines(_vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vkPipeline) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create graphics pipeline!");
     }
 
     return vkPipeline;
+}
+
+void TEDevice::DestroyPipeline(VkPipeline pipeline)
+{
+    vkDestroyPipeline(_vkDevice, pipeline, nullptr);
 }
 
 VkRenderPass TEDevice::CreateRenderPass(VkFormat format)
@@ -521,9 +498,9 @@ VkRenderPass TEDevice::CreateRenderPass(VkFormat format)
     renderPassInfo.pSubpasses = &subpass;
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
-    
+
     VkRenderPass renderPass;
-    if (vkCreateRenderPass(vkDevice, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
+    if (vkCreateRenderPass(_vkDevice, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create render pass!");
     }
@@ -531,8 +508,37 @@ VkRenderPass TEDevice::CreateRenderPass(VkFormat format)
     return renderPass;
 }
 
-void TEDevice::Cleanup()
+void TEDevice::DestroyRenderPass(VkRenderPass renderPass)
 {
-    if (vkDevice != VK_NULL_HANDLE)
-        vkDestroyDevice(vkDevice, nullptr);
+    vkDestroyRenderPass(_vkDevice, renderPass, nullptr);
+}
+
+void TEDevice::WaitIdle()
+{
+    vkDeviceWaitIdle(_vkDevice);
+}
+
+VkDevice TEDevice::GetRawDevice()
+{
+    return _vkDevice;
+}
+
+VkQueue TEDevice::GetGraphicQueue()
+{
+    return _vkGraphicQueue;
+}
+
+VkQueue TEDevice::GetPresentQueue()
+{
+    return _vkPresentQueue;
+}
+
+uint32_t TEDevice::GetGraphicQueueFamilyIndex()
+{
+    return _graphicQueueFamilyIndex;
+}
+
+uint32_t TEDevice::GetPresentQueueFamilyIndex()
+{
+    return _presentQueueFamilyIndex;
 }
