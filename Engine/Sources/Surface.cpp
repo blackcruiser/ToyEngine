@@ -9,21 +9,17 @@
 
 TESurface::TESurface(VkInstance vkInstance, TEPtr<TEGPU> GPU, TEPtr<TEWindow> window) : _vkInstance(vkInstance), _GPU(GPU), _window(window)
 {
-}
-
-void TESurface::Init()
-{
     if (glfwCreateWindowSurface(_vkInstance, _window->GetRawWindow(), nullptr, &_vkSurface) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create window surface!");
     }
 
-    SelectSurfaceFormat();
-    SelectPresentMode();
-    CalculateExtent();
+    _SelectSurfaceFormat();
+    _SelectPresentMode();
+    _CalculateExtent();
 }
 
-void TESurface::Cleanup()
+TESurface::~TESurface()
 {
     vkDestroySurfaceKHR(_vkInstance, _vkSurface, nullptr);
 }
@@ -91,7 +87,7 @@ VkSurfaceCapabilitiesKHR TESurface::GetCpabilities()
     return capabilities;
 }
 
-void TESurface::SelectSurfaceFormat()
+void TESurface::_SelectSurfaceFormat()
 {
     std::vector<VkSurfaceFormatKHR> surfaceFormats = GetSupportedSurfaceFormats();
 
@@ -107,11 +103,11 @@ void TESurface::SelectSurfaceFormat()
     }
 }
 
-void TESurface::SelectPresentMode()
+void TESurface::_SelectPresentMode()
 {
     std::vector<VkPresentModeKHR> supportedPresentModes = GetSupportedPresentModes();
 
-    VkPresentModeKHR presentMode{ VkPresentModeKHR::VK_PRESENT_MODE_IMMEDIATE_KHR };
+    VkPresentModeKHR presentMode{VkPresentModeKHR::VK_PRESENT_MODE_IMMEDIATE_KHR};
     for (const VkPresentModeKHR &presentMode : supportedPresentModes)
     {
         if (presentMode == VkPresentModeKHR::VK_PRESENT_MODE_MAILBOX_KHR)
@@ -120,7 +116,7 @@ void TESurface::SelectPresentMode()
     _presentMode = presentMode;
 }
 
-void TESurface::CalculateExtent()
+void TESurface::_CalculateExtent()
 {
     VkSurfaceCapabilitiesKHR capabilities = GetCpabilities();
 

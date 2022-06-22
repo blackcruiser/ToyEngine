@@ -7,18 +7,12 @@
 
 class TEGPU;
 class TESurface;
-class TECommandPool;
 
 class TEDevice
 {
 public:
     TEDevice(TEPtr<TEGPU> GPU, TEPtr<TESurface> surface);
-
-    void Init();
-    void Cleanup();
-
-    TEPtr<TECommandPool> CreateCommandPool(TEPtr<TEDevice> device);
-    void DestroyCommandPool(TEPtr<TECommandPool> commandPool);
+    ~TEDevice();
 
     VkBuffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage);
     void DestroyBuffer(VkBuffer buffer);

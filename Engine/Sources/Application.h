@@ -16,10 +16,9 @@ class TEApplication
 {
 public:
     TEApplication();
+    ~TEApplication();
 
-    void Init();
     void Run();
-    void Cleanup();
 
 private:
     void _InitGlfw();

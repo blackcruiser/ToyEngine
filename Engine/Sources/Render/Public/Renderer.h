@@ -16,18 +16,15 @@ class TECommandBuffer;
 class TERendererInterface
 {
 public:
-	virtual void Init() = 0;
 	virtual void RenderFrame(TEPtr<TEScene> scene) = 0;
-	virtual void Cleanup() = 0;
 
-private:
 };
 
 class TEForwardRenderer : public TERendererInterface
 {
 public:
 	TEForwardRenderer(TEPtr<TEDevice> device, TEPtr<TESurface> surface);
-	virtual void Init() override;
+	virtual ~TEForwardRenderer();
 
 	VkPipeline CreatePipeline(TEPtr<TEMaterial> material);
 	void CreateSwapchain(VkRenderPass renderPass);
@@ -36,8 +33,6 @@ public:
 
 	void GatherObjects(TEPtr<TEScene> scene);
 	virtual void RenderFrame(TEPtr<TEScene> scene) override;
-
-	virtual void Cleanup() override;
 
 private:
 	std::map<std::uintptr_t, TEPtrArr<TEObject>> _objectsToRender;

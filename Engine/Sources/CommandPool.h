@@ -13,9 +13,7 @@ class TECommandPool
 {
 public:
     TECommandPool(TEPtr<TEDevice> device);
-
-    void Init();
-    void Cleanup();
+    ~TECommandPool();
 
     TECommandBuffer *CreateCommandBuffer(TEPtr<TECommandPool> commandPool);
     void DestroyCommandBuffer(TECommandBuffer *commandBuffer);
@@ -24,7 +22,7 @@ public:
     TEPtr<TEDevice> GetDevice();
 
 private:
-    void CreateRawCommandPool();
+    void _CreateRawCommandPool();
 
 private:
     TEPtr<TEDevice> _device;

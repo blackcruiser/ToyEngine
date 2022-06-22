@@ -34,21 +34,56 @@ static std::vector<char> readFile(const std::string &filename)
 
 TEForwardRenderer::TEForwardRenderer(TEPtr<TEDevice> device, TEPtr<TESurface> surface) : _device(device), _surface(surface), _stagingBuffer(VK_NULL_HANDLE), _stagingBufferSize(0), _vertexBuffer(VK_NULL_HANDLE), _vertexBufferSize(0)
 {
-}
-
-void TEForwardRenderer::Init()
-{
     VkSurfaceFormatKHR surfaceFormat = _surface->GetSurfaceFormat();
     _vkRenderPass = _device->CreateRenderPass(surfaceFormat.format);
     CreateSwapchain(_vkRenderPass);
 
-    _commandPool = _device->CreateCommandPool(_device);
+    _commandPool = std::make_shared<TECommandPool>(_device);
     _commandBuffer = _commandPool->CreateCommandBuffer(_commandPool);
 
     _imageAvailableSemaphore = _device->CreateSemaphore();
     _renderFinishedSemaphore = _device->CreateSemaphore();
 
     _inFlightFence = _device->CreateFence(true);
+}
+
+TEForwardRenderer::~TEForwardRenderer()
+{
+    _device->FreeMemmory(_vertexBufferMemory);
+    _device->DestroyBuffer(_vertexBuffer);
+
+    _device->FreeMemmory(_stagingBufferMemory);
+    _device->DestroyBuffer(_stagingBuffer);
+
+    _device->DestroySemaphore(_imageAvailableSemaphore);
+    _device->DestroySemaphore(_renderFinishedSemaphore);
+    _device->DestroyFence(_inFlightFence);
+
+    _device->DestroyPipelineLayout(_vkPipelineLayout);
+
+    for (auto iter = _pipelines.begin(); iter != _pipelines.end(); iter++)
+        _device->DestroyPipeline(iter->second);
+
+    _device->DestroyRenderPass(_vkRenderPass);
+
+    for (VkShaderModule &shaderModule : _vkShaderModules)
+    {
+        _device->DestroyShaderModule(shaderModule);
+    }
+
+    for (auto imageView : _vkImageViews)
+    {
+        _device->DestroyImageView(imageView);
+    }
+
+    for (VkFramebuffer &framebuffer : _vkFramebuffers)
+    {
+        _device->DestroyFramebuffer(framebuffer);
+    }
+
+    _commandPool->DestroyCommandBuffer(_commandBuffer);
+    _commandPool.reset();
+    _device->DestroySwapchain(_vkSwapchain);
 }
 
 VkPipeline TEForwardRenderer::CreatePipeline(TEPtr<TEMaterial> material)
@@ -283,44 +318,4 @@ void TEForwardRenderer::RenderFrame(TEPtr<TEScene> scene)
     presentInfo.pResults = nullptr; // Optional
 
     vkQueuePresentKHR(_device->GetPresentQueue(), &presentInfo);
-}
-
-void TEForwardRenderer::Cleanup()
-{
-    _device->FreeMemmory(_vertexBufferMemory);
-    _device->DestroyBuffer(_vertexBuffer);
-
-    _device->FreeMemmory(_stagingBufferMemory);
-    _device->DestroyBuffer(_stagingBuffer);
-
-    _commandBuffer->Cleanup();
-    _commandPool->Cleanup();
-
-    _device->DestroySemaphore(_imageAvailableSemaphore);
-    _device->DestroySemaphore(_renderFinishedSemaphore);
-    _device->DestroyFence(_inFlightFence);
-
-    _device->DestroyPipelineLayout(_vkPipelineLayout);
-
-    for (auto iter = _pipelines.begin(); iter != _pipelines.end(); iter++)
-        _device->DestroyPipeline(iter->second);
-
-    _device->DestroyRenderPass(_vkRenderPass);
-
-    for (VkShaderModule &shaderModule : _vkShaderModules)
-    {
-        _device->DestroyShaderModule(shaderModule);
-    }
-
-    for (auto imageView : _vkImageViews)
-    {
-        _device->DestroyImageView(imageView);
-    }
-
-    for (VkFramebuffer &framebuffer : _vkFramebuffers)
-    {
-        _device->DestroyFramebuffer(framebuffer);
-    }
-
-    _device->DestroySwapchain(_vkSwapchain);
 }

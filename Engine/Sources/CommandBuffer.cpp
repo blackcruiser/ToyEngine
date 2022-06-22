@@ -4,14 +4,11 @@
 
 TECommandBuffer::TECommandBuffer(TEPtr<TECommandPool> commandPool) : _commandPool(commandPool)
 {
+
+    _CreateRawBuffer();
 }
 
-void TECommandBuffer::Init()
-{
-    CreateRawBuffer();
-}
-
-void TECommandBuffer::Cleanup()
+TECommandBuffer::~TECommandBuffer()
 {
     VkDevice vkDevice = _commandPool->GetDevice()->GetRawDevice();
     VkCommandPool vkCommandPool = _commandPool->GetRawCommandPool();
@@ -38,7 +35,7 @@ VkCommandBuffer TECommandBuffer::GetRawCommandBuffer()
     return _vkCommandBuffer;
 }
 
-void TECommandBuffer::CreateRawBuffer()
+void TECommandBuffer::_CreateRawBuffer()
 {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;

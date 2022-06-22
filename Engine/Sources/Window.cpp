@@ -4,11 +4,7 @@
 
 #include <stdexcept>
 
-TEWindow::TEWindow() : _glfwWindow(nullptr)
-{
-}
-
-void TEWindow::Init(const std::string &appName, int width, int height)
+TEWindow::TEWindow(const std::string &appName, int width, int height) : _glfwWindow(nullptr), _width(width), _height(height)
 {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
@@ -21,7 +17,7 @@ void TEWindow::Init(const std::string &appName, int width, int height)
     }
 }
 
-void TEWindow::Cleanup()
+TEWindow::~TEWindow()
 {
     glfwDestroyWindow(_glfwWindow);
 }

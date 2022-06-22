@@ -5,16 +5,10 @@
 #include <stdexcept>
 #include <set>
 
-
 TEGPU::TEGPU(const VkInstance &vkInstance) : _vkInstance(vkInstance),
                                              _GPU(VK_NULL_HANDLE), _deviceExtensions({VK_KHR_SWAPCHAIN_EXTENSION_NAME})
 {
-}
-
-void TEGPU::Init()
-{
     std::vector<VkPhysicalDevice> GPUs = GetSupportedGPUs();
-
 
     _GPU = VK_NULL_HANDLE;
     for (size_t i = 0; i < GPUs.size(); i++)
@@ -34,7 +28,7 @@ void TEGPU::Init()
     }
 }
 
-void TEGPU::Cleanup()
+TEGPU::~TEGPU()
 {
 }
 
@@ -50,7 +44,7 @@ const std::vector<const char *> &TEGPU::GetExtensions()
 
 std::vector<VkExtensionProperties> TEGPU::GetExtensionProperties(VkPhysicalDevice GPU)
 {
-    uint32_t extensionCount = 0;     
+    uint32_t extensionCount = 0;
     vkEnumerateDeviceExtensionProperties(GPU, nullptr, &extensionCount, nullptr);
 
     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
@@ -91,14 +85,6 @@ uint32_t TEGPU::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags proper
     }
 
     throw std::runtime_error("failed to find suitable memory type!");
-}
-
-TEPtr<TEDevice> TEGPU::CreateDevice(TEPtr<TEGPU> GPU, TEPtr<TESurface> surface)
-{
-    TEPtr<TEDevice> device = std::make_shared<TEDevice>(GPU, surface);
-    device->Init();
-
-    return device;
 }
 
 std::vector<VkPhysicalDevice> TEGPU::GetSupportedGPUs()

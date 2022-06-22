@@ -16,26 +16,27 @@ const int kHeight = 800;
 
 TEApplication::TEApplication() : _device(nullptr), _window(nullptr), _renderer(nullptr)
 {
-}
 
-void TEApplication::Init()
-{
     _InitGlfw();
     _CreateVulkanInstance();
 
-    _window = std::make_shared<TEWindow>();
-    _window->Init(AppName, kWidth, kHeight);
-
+    _window = std::make_shared<TEWindow>(AppName, kWidth, kHeight);
     _GPU = std::make_shared<TEGPU>(_vkInstance);
-    _GPU->Init();
-
     _surface = std::make_shared<TESurface>(_vkInstance, _GPU, _window);
-    _surface->Init();
-
-    _device = _GPU->CreateDevice(_GPU, _surface);
-
+    _device = std::make_shared<TEDevice>(_GPU, _surface);
     _renderer = std::make_shared<TEForwardRenderer>(_device, _surface);
-    _renderer->Init();
+}
+
+TEApplication::~TEApplication()
+{
+    _renderer.reset();
+    _device.reset();
+    _surface.reset();
+    _GPU.reset();
+    _window.reset();
+
+    _CleanupVulkan();
+    _CleanupGlfw();
 }
 
 void TEApplication::_InitGlfw()
@@ -93,18 +94,6 @@ void TEApplication::Run()
     _device->WaitIdle();
 }
 
-void TEApplication::Cleanup()
-{
-    _renderer->Cleanup();
-
-    _device->Cleanup();
-    _surface->Cleanup();
-    _window->Cleanup();
-
-    _CleanupVulkan();
-    _CleanupGlfw();
-}
-
 void TEApplication::_CleanupVulkan()
 {
 
@@ -114,6 +103,5 @@ void TEApplication::_CleanupVulkan()
 
 void TEApplication::_CleanupGlfw()
 {
-
     glfwTerminate();
 }

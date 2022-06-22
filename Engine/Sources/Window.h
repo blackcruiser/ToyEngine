@@ -8,10 +8,8 @@
 class TEWindow
 {
 public:
-    TEWindow();
-
-    void Init(const std::string &appName, int width, int height);
-    void Cleanup();
+    TEWindow(const std::string &appName, int width, int height);
+    ~TEWindow();
 
     bool ShouldClose();
 
@@ -20,4 +18,5 @@ public:
 
 private:
     GLFWwindow *_glfwWindow;
+    int _width, _height;
 };

@@ -1,7 +1,6 @@
 #include "Device.h"
 #include "GPU.h"
 #include "Surface.h"
-#include "CommandPool.h"
 
 #include <limits>
 #include <stdexcept>
@@ -12,10 +11,6 @@
 
 TEDevice::TEDevice(TEPtr<TEGPU> GPU, TEPtr<TESurface> surface) : _GPU(GPU), _surface(surface),
                                                                  _vkDevice(VK_NULL_HANDLE), _vkGraphicQueue(VK_NULL_HANDLE), _vkPresentQueue(VK_NULL_HANDLE), _graphicQueueFamilyIndex(std::numeric_limits<uint32_t>::max()), _presentQueueFamilyIndex(std::numeric_limits<uint32_t>::max())
-{
-}
-
-void TEDevice::Init()
 {
     // Queue
     std::vector<VkQueueFamilyProperties> queueFamilyProperties = _GPU->GetQueueFamilyProperties();
@@ -68,18 +63,10 @@ void TEDevice::Init()
     vkGetDeviceQueue(_vkDevice, _presentQueueFamilyIndex, 0, &_vkPresentQueue);
 }
 
-void TEDevice::Cleanup()
+TEDevice::~TEDevice()
 {
     if (_vkDevice != VK_NULL_HANDLE)
         vkDestroyDevice(_vkDevice, nullptr);
-}
-
-TEPtr<TECommandPool> TEDevice::CreateCommandPool(TEPtr<TEDevice> device)
-{
-    TEPtr<TECommandPool> commandPool = std::make_shared<TECommandPool>(device);
-    commandPool->Init();
-
-    return commandPool;
 }
 
 VkBuffer TEDevice::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage)

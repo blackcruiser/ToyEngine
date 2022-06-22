@@ -9,8 +9,7 @@ class TESurface
 {
 public:
     TESurface(VkInstance vkInstance, TEPtr<TEGPU> GPU, TEPtr<TEWindow> window);
-    void Init();
-    void Cleanup();
+    ~TESurface();
 
     VkSurfaceKHR GetRawSurface();
     VkSurfaceFormatKHR GetSurfaceFormat();
@@ -22,9 +21,9 @@ public:
     VkSurfaceCapabilitiesKHR GetCpabilities();
 
 private:
-    void SelectSurfaceFormat();
-    void SelectPresentMode();
-    void CalculateExtent();
+    void _SelectSurfaceFormat();
+    void _SelectPresentMode();
+    void _CalculateExtent();
 
 private:
     VkInstance _vkInstance;

@@ -11,9 +11,7 @@ class TECommandBuffer
 {
 public:
     TECommandBuffer(TEPtr<TECommandPool> commandPool);
-
-    void Init();
-    void Cleanup();
+    ~TECommandBuffer();
 
     void Begin();
     void End();
@@ -21,8 +19,8 @@ public:
     VkCommandBuffer GetRawCommandBuffer();
 
 private:
-    void CreateRawBuffer();
-    void AllocateAndBindBufferMemory();
+    void _CreateRawBuffer();
+    void _AllocateAndBindBufferMemory();
 
 private:
     TEPtr<TECommandPool> _commandPool;
