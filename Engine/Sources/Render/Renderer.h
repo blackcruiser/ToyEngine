@@ -1,8 +1,8 @@
 #pragma once
 
 #include "CommonDefine.h"
-#include "Device.h"
-#include "Window.h"
+#include "Graphic/Device.h"
+#include "Graphic/Window.h"
 
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.h>

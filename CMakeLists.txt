@@ -11,20 +11,26 @@ set(CMAKE_CXX_STANDARD 20)
 # Source
 set(EngineSourcesDirectory ${CMAKE_CURRENT_LIST_DIR}/Engine/Sources)
 
+## Graphic Module
+set(GraphicSourceDirectory ${EngineSourcesDirectory}/Graphic)
+# should not use file(GLOB ...)
+file(GLOB GraphicIncludes "${GraphicSourceDirectory}/*.h")
+aux_source_directory(${GraphicSourceDirectory}/Src GraphicSources)
+source_group(TREE ${EngineSourcesDirectory} FILES ${GraphicSources} ${GraphicIncludes})
 
 ## Render Module
 set(RenderSourceDirectory ${EngineSourcesDirectory}/Render)
 # should not use file(GLOB ...)
-file(GLOB RenderIncludes "${RenderSourceDirectory}/Public/*.h")
-aux_source_directory(${RenderSourceDirectory} RenderSources)
-source_group(TREE ${RenderSourceDirectory} FILES ${RenderSources} ${RenderIncludes})
+file(GLOB RenderIncludes "${RenderSourceDirectory}/*.h")
+aux_source_directory(${RenderSourceDirectory}/Src RenderSources)
+source_group(TREE ${EngineSourcesDirectory} FILES ${RenderSources} ${RenderIncludes})
 
 ## Scene Module
 set(SceneSourceDirectory ${EngineSourcesDirectory}/Scene)
 # should not use file(GLOB ...)
-file(GLOB SceneIncludes "${SceneSourceDirectory}/Public/*.h")
-aux_source_directory(${SceneSourceDirectory} SceneSources)
-source_group(TREE ${SceneSourceDirectory} FILES ${SceneSources} ${SceneIncludes})
+file(GLOB SceneIncludes "${SceneSourceDirectory}/*.h")
+aux_source_directory(${SceneSourceDirectory}/Src SceneSources)
+source_group(TREE ${EngineSourcesDirectory} FILES ${SceneSources} ${SceneIncludes})
 
 
 # ThirdParties
@@ -66,9 +72,10 @@ add_subdirectory(${ThirdPartiesSourcesDirectory}/glfw)
 file(GLOB EngineIncludes "${EngineSourcesDirectory}/*.h")
 aux_source_directory(${EngineSourcesDirectory} EngineSources)
 
-add_library(Engine ${RenderSources} ${RenderIncludes} ${SceneSources} ${SceneIncludes} ${EngineSources} ${EngineIncludes})
+add_library(Engine ${GraphicSources} ${GraphicIncludes} ${RenderSources} ${RenderIncludes} ${SceneSources} ${SceneIncludes} ${EngineSources} ${EngineIncludes})
 target_include_directories(Engine 
-                            PUBLIC ${RenderSourceDirectory}/Public ${SceneSourceDirectory}/Public ${EngineSourcesDirectory})
+                            PUBLIC ${EngineSourcesDirectory}
+                            PRIVATE ${GraphicSourceDirectory} ${RenderSourceDirectory} ${SceneSourceDirectory})
 target_link_libraries(Engine PUBLIC glfw glm::glm ${Vulkan})
 
 

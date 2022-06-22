@@ -1,10 +1,10 @@
 #include "Application.h"
-#include "Renderer.h"
-#include "GPU.h"
-#include "Window.h"
-#include "Device.h"
-#include "Surface.h"
-#include "Scene.h"
+#include "Render/Renderer.h"
+#include "Graphic/GPU.h"
+#include "Graphic/Window.h"
+#include "Graphic/Device.h"
+#include "Graphic/Surface.h"
+#include "Scene/Scene.h"
 
 #include <string>
 #include <stdexcept>

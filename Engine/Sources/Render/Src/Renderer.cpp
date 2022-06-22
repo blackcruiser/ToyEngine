@@ -1,10 +1,10 @@
 #include "Renderer.h"
-#include "Scene.h"
-#include "Object.h"
-#include "Material.h"
-#include "Surface.h"
-#include "CommandPool.h"
-#include "CommandBuffer.h"
+#include "Scene/Scene.h"
+#include "Scene/Object.h"
+#include "Scene/Material.h"
+#include "Graphic/Surface.h"
+#include "Graphic/CommandPool.h"
+#include "Graphic/CommandBuffer.h"
 
 #include <stdexcept>
 #include <algorithm>
