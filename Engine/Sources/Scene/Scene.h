@@ -1,8 +1,8 @@
 #pragma once
 
-#include "CommonDefine.h"
+#include "CoreDefine.h"
 
-class TEObject;
+class TESceneObject;
 
 class TEScene
 {
@@ -12,10 +12,9 @@ public:
 public:
     TEScene();
 
-    void AddObject(TEPtr<TEObject> object);
-
-    const TEPtrArr<TEObject> &GetObjects();
+    void AddObject(TEPtr<TESceneObject> object);
+    const TEPtrArr<TESceneObject> &GetObjects();
 
 private:
-    TEPtrArr<TEObject> _objects;
+    TEPtrArr<TESceneObject> _objects;
 };

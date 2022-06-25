@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CommonDefine.h"
+#include "CoreDefine.h"
 #include "Graphic/Device.h"
 #include "Graphic/Window.h"
 
@@ -8,8 +8,8 @@
 #include <vulkan/vulkan.h>
 
 class TEScene;
-class TEObject;
-class TEMaterial;
+class TESceneObject;
+class TEMaterialComponent;
 class TECommandPool;
 class TECommandBuffer;
 
@@ -26,7 +26,7 @@ public:
 	TEForwardRenderer(TEPtr<TEDevice> device, TEPtr<TESurface> surface);
 	virtual ~TEForwardRenderer();
 
-	VkPipeline CreatePipeline(TEPtr<TEMaterial> material);
+	VkPipeline CreatePipeline(TEPtr<TEMaterialComponent> material);
 	void CreateSwapchain(VkRenderPass renderPass);
 
 	void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
@@ -35,7 +35,7 @@ public:
 	virtual void RenderFrame(TEPtr<TEScene> scene) override;
 
 private:
-	std::map<std::uintptr_t, TEPtrArr<TEObject>> _objectsToRender;
+	std::map<std::uintptr_t, TEPtrArr<TESceneObject>> _objectsToRender;
 
 	TEPtr<TEDevice> _device;
 	TEPtr<TESurface> _surface;
@@ -48,7 +48,7 @@ private:
 
 	VkRenderPass _vkRenderPass;
 	VkPipelineLayout _vkPipelineLayout;
-	std::map<std::uintptr_t, VkPipeline> _pipelines;
+	std::map<size_t, VkPipeline> _pipelines;
 
 	VkBuffer _stagingBuffer, _vertexBuffer;
 	VkDeviceMemory _stagingBufferMemory, _vertexBufferMemory;
