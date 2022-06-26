@@ -8,7 +8,7 @@
 #include <map>
 #include <memory>
 
-class TESceneObject
+class TESceneObject : public std::enable_shared_from_this<TESceneObject>
 {
 public:
     TESceneObject();
@@ -20,6 +20,8 @@ public:
     {
         size_t hash = typeid(T).hash_code();
         _componentMap.insert(std::make_pair(hash, component));
+
+        component->SetObject(weak_from_this());
     }
 
     template <typename T>

@@ -281,11 +281,12 @@ void TEDevice::DestroySwapchain(VkSwapchainKHR swapchain)
     vkDestroySwapchainKHR(_vkDevice, swapchain, nullptr);
 }
 
-VkPipelineLayout TEDevice::CreatePipelineLayout()
+VkPipelineLayout TEDevice::CreatePipelineLayout(VkDescriptorSetLayout descriptorSetLayout)
 {
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
     pipelineLayoutInfo.pushConstantRangeCount = 0;
 
     VkPipelineLayout pipelineLayout;
@@ -498,6 +499,96 @@ VkRenderPass TEDevice::CreateRenderPass(VkFormat format)
 void TEDevice::DestroyRenderPass(VkRenderPass renderPass)
 {
     vkDestroyRenderPass(_vkDevice, renderPass, nullptr);
+}
+
+VkDescriptorSetLayout TEDevice::CreateDescriptorSetLayout(VkDescriptorType type, uint32_t descriptorCount, VkShaderStageFlags stageFlags)
+{
+    VkDescriptorSetLayoutBinding layoutBinding{};
+    layoutBinding.binding = 0;
+    layoutBinding.descriptorType = type;
+    layoutBinding.descriptorCount = descriptorCount;
+    layoutBinding.stageFlags = stageFlags;
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &layoutBinding;
+
+    VkDescriptorSetLayout descriptorSetLayout;
+    if (vkCreateDescriptorSetLayout(_vkDevice, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+
+    return descriptorSetLayout;
+}
+
+void TEDevice::DestroyDescriptorSetLayout(VkDescriptorSetLayout descriptorSetLayout)
+{
+    vkDestroyDescriptorSetLayout(_vkDevice, descriptorSetLayout, nullptr);
+}
+
+VkDescriptorPool TEDevice::CreateDescriptorPool(VkDescriptorType type, uint32_t descriptorCount)
+{
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = type;
+    poolSize.descriptorCount = descriptorCount;
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.maxSets = descriptorCount;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+
+    VkDescriptorPool descriptorPool;
+    if (vkCreateDescriptorPool(_vkDevice, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create descriptor pool!");
+    }
+
+    return descriptorPool;
+}
+
+void TEDevice::DestroyDescriptorPool(VkDescriptorPool descriptorPool)
+{
+    vkDestroyDescriptorPool(_vkDevice, descriptorPool, nullptr);
+}
+
+VkDescriptorSet TEDevice::AllocateDescriptorSet(VkDescriptorPool descriptorPool, uint32_t descriptorSetCount, const VkDescriptorSetLayout *pSetLayouts)
+{
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = descriptorSetCount;
+    allocInfo.pSetLayouts = pSetLayouts;
+
+    VkDescriptorSet descriptorSet;
+    if (vkAllocateDescriptorSets(_vkDevice, &allocInfo, &descriptorSet) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to allocate descriptor sets!");
+    }
+    return descriptorSet;
+}
+
+void TEDevice::UpdateDescriptorSet(VkDescriptorSet descriptorSet, VkDescriptorType descriptorType, VkBuffer buffer, VkDeviceSize size)
+{
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = buffer;
+    bufferInfo.offset = 0;
+    bufferInfo.range = size;
+
+    VkWriteDescriptorSet descriptorWrite{};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = descriptorSet;
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pBufferInfo = &bufferInfo;
+    descriptorWrite.pImageInfo = nullptr;       // Optional
+    descriptorWrite.pTexelBufferView = nullptr; // Optional
+
+    vkUpdateDescriptorSets(_vkDevice, 1, &descriptorWrite, 0, nullptr);
 }
 
 void TEDevice::WaitIdle()

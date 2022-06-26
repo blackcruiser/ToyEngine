@@ -3,6 +3,8 @@
 #include "Scene/SceneObject.h"
 #include "Scene/MeshComponent.h"
 #include "Scene/MaterialComponent.h"
+#include "Scene/CameraComponent.h"
+#include "Scene/TransformComponent.h"
 #include "Graphic/Surface.h"
 #include "Graphic/CommandPool.h"
 #include "Graphic/CommandBuffer.h"
@@ -34,7 +36,7 @@ static std::vector<char> readFile(const std::string &filename)
     return buffer;
 }
 
-TEForwardRenderer::TEForwardRenderer(TEPtr<TEDevice> device, TEPtr<TESurface> surface) : _device(device), _surface(surface), _stagingBuffer(VK_NULL_HANDLE), _stagingBufferSize(0), _vertexBuffer(VK_NULL_HANDLE), _vertexBufferSize(0)
+TEForwardRenderer::TEForwardRenderer(TEPtr<TEDevice> device, TEPtr<TESurface> surface) : _device(device), _surface(surface), _stagingBuffer(VK_NULL_HANDLE), _stagingBufferSize(0), _vertexBuffer(VK_NULL_HANDLE), _vertexBufferSize(0), _indexBuffer(VK_NULL_HANDLE), _indexesBufferSize(0), _uniformBuffer(VK_NULL_HANDLE)
 {
     VkSurfaceFormatKHR surfaceFormat = _surface->GetSurfaceFormat();
     _vkRenderPass = _device->CreateRenderPass(surfaceFormat.format);
@@ -47,15 +49,34 @@ TEForwardRenderer::TEForwardRenderer(TEPtr<TEDevice> device, TEPtr<TESurface> su
     _renderFinishedSemaphore = _device->CreateSemaphore();
 
     _inFlightFence = _device->CreateFence(true);
+
+    _descriptorPool = _device->CreateDescriptorPool(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
+    _descriptorLayout = _device->CreateDescriptorSetLayout(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
+
+    _uniformBuffer = _device->CreateBuffer(sizeof(glm::mat4x4), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+    _uniformBufferMemory = _device->AllocateAndBindBufferMemory(_uniformBuffer,
+                                                                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    _descriptorSet = _device->AllocateDescriptorSet(_descriptorPool, 1, &_descriptorLayout);
+    _device->UpdateDescriptorSet(_descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, _uniformBuffer, sizeof(glm::mat4x4));
 }
 
 TEForwardRenderer::~TEForwardRenderer()
 {
+    _device->FreeMemmory(_uniformBufferMemory);
+    _device->DestroyBuffer(_uniformBuffer);
+
+    _device->FreeMemmory(_indexBufferMemory);
+    _device->DestroyBuffer(_indexBuffer); 
+
     _device->FreeMemmory(_vertexBufferMemory);
     _device->DestroyBuffer(_vertexBuffer);
 
     _device->FreeMemmory(_stagingBufferMemory);
     _device->DestroyBuffer(_stagingBuffer);
+
+    _device->DestroyDescriptorSetLayout(_descriptorLayout);
+    _device->DestroyDescriptorPool(_descriptorPool);
 
     _device->DestroySemaphore(_imageAvailableSemaphore);
     _device->DestroySemaphore(_renderFinishedSemaphore);
@@ -99,7 +120,7 @@ VkPipeline TEForwardRenderer::CreatePipeline(TEPtr<TEMaterialComponent> material
     VkShaderModule vkFragmentShaderModule = _device->CreateShaderModule(fragShaderCode);
     _vkShaderModules.push_back(vkFragmentShaderModule);
 
-    _vkPipelineLayout = _device->CreatePipelineLayout();
+    _vkPipelineLayout = _device->CreatePipelineLayout(_descriptorLayout);
     VkPipeline vkPipeline = _device->CreateGraphicPipeline(vkVerterShaderModule, vkFragmentShaderModule, _surface->GetExtent(), _vkPipelineLayout, _vkRenderPass);
 
     return vkPipeline;
@@ -139,11 +160,13 @@ void TEForwardRenderer::CreateSwapchain(VkRenderPass renderPass)
 void TEForwardRenderer::GatherObjects(TEPtr<TEScene> scene)
 {
     const TEPtrArr<TESceneObject> &objects = scene->GetObjects();
+    std::hash<TEMaterialComponent *> hashCreator;
 
+    _objectsToRender.clear();
     for (auto &object : objects)
     {
         TEPtr<TEMaterialComponent> material = object->GetComponent<TEMaterialComponent>();
-        std::uintptr_t address = reinterpret_cast<std::uintptr_t>(material.get());
+        size_t address = hashCreator(material.get());
         if (_objectsToRender.find(address) == _objectsToRender.end())
             _objectsToRender.emplace(address, TEPtrArr<TESceneObject>());
         TEPtrArr<TESceneObject> &objectArr = _objectsToRender.at(address);
@@ -205,6 +228,9 @@ void TEForwardRenderer::RenderFrame(TEPtr<TEScene> scene)
 
     vkCmdBeginRenderPass(vkCommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+    TEPtr<TECameraComponent> cameraComponent = scene->GetCamera();
+    glm::mat4x4 VP = cameraComponent->GetViewMatrix() * cameraComponent->GetProjectMatrix();
+
     for (auto &pair : _objectsToRender)
     {
         auto &objectArr = pair.second;
@@ -215,8 +241,8 @@ void TEForwardRenderer::RenderFrame(TEPtr<TEScene> scene)
 
         VkPipeline vkPipeline;
 
-        std::hash<TEMaterialComponent *> hashCreater;
-        size_t address = hashCreater(materialComponent.get());
+        std::hash<TEMaterialComponent *> hashCreator;
+        size_t address = hashCreator(materialComponent.get());
         if (_pipelines.find(address) == _pipelines.end())
         {
             vkPipeline = CreatePipeline(materialComponent);
@@ -227,69 +253,98 @@ void TEForwardRenderer::RenderFrame(TEPtr<TEScene> scene)
             vkPipeline = _pipelines[address];
         }
 
-        size_t totalBufferSize = 0;
-        for (auto &object : objectArr)
-        {
-            TEPtr<TEMeshComponent> meshComponent = objectArr[0]->GetComponent<TEMeshComponent>();
-            const std::vector<glm::vec3> &vertices = meshComponent->GetVertices();
-            totalBufferSize = vertices.size() * sizeof(glm::vec3);
-        }
+        vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline);
 
-        if (_stagingBuffer != VK_NULL_HANDLE && totalBufferSize > _stagingBufferSize)
-        {
-            _device->FreeMemmory(_stagingBufferMemory);
-            _device->DestroyBuffer(_stagingBuffer);
-
-            _stagingBuffer = VK_NULL_HANDLE;
-        }
-
-        if (_stagingBuffer == VK_NULL_HANDLE)
-        {
-            _stagingBuffer = _device->CreateBuffer(totalBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-            _stagingBufferMemory = _device->AllocateAndBindBufferMemory(_stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-            _stagingBufferSize = totalBufferSize;
-        }
-
-        if (_vertexBuffer != VK_NULL_HANDLE && totalBufferSize > _vertexBufferSize)
-        {
-            _device->FreeMemmory(_vertexBufferMemory);
-            _device->DestroyBuffer(_vertexBuffer);
-
-            _vertexBuffer = VK_NULL_HANDLE;
-        }
-
-        if (_vertexBuffer == VK_NULL_HANDLE)
-        {
-            _vertexBuffer = _device->CreateBuffer(totalBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-            _vertexBufferMemory = _device->AllocateAndBindBufferMemory(_vertexBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        }
-
-        void *data;
-        vkMapMemory(_device->GetRawDevice(), _stagingBufferMemory, 0, totalBufferSize, 0, &data);
-
-        uint8_t *dataPtr = reinterpret_cast<uint8_t *>(data);
-        uint32_t vertexCounts = 0;
         for (auto &object : objectArr)
         {
             TEPtr<TEMeshComponent> meshComponent = object->GetComponent<TEMeshComponent>();
+
+            if (meshComponent == nullptr)
+                continue;
+
             const std::vector<glm::vec3> &vertices = meshComponent->GetVertices();
-            size_t bufferSize = vertices.size() * sizeof(glm::vec3);
-            memcpy(dataPtr, vertices.data(), bufferSize);
-            dataPtr = dataPtr + bufferSize;
-            vertexCounts += vertices.size();
+            const std::vector<int> &indexes = meshComponent->GetIndexes();
+
+            TEPtr<TETransformComponent> transformComponent = object->GetComponent<TETransformComponent>();
+            glm::mat4x4 MVP = transformComponent->GetTransform() * VP;
+
+            size_t curVertexBufferSize = vertices.size() * sizeof(glm::vec3);
+            size_t curIndexBufferSize = indexes.size() * sizeof(int);
+
+            if (_stagingBuffer != VK_NULL_HANDLE && (curVertexBufferSize > _stagingBufferSize || curIndexBufferSize > _stagingBufferSize))
+            {
+                _device->FreeMemmory(_stagingBufferMemory);
+                _device->DestroyBuffer(_stagingBuffer);
+
+                _stagingBuffer = VK_NULL_HANDLE;
+            }
+
+            if (_stagingBuffer == VK_NULL_HANDLE)
+            {
+                _stagingBufferSize = std::max(curIndexBufferSize, curVertexBufferSize);
+                _stagingBuffer = _device->CreateBuffer(_stagingBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+                _stagingBufferMemory = _device->AllocateAndBindBufferMemory(_stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            }
+
+            if (_vertexBuffer != VK_NULL_HANDLE && curVertexBufferSize > _vertexBufferSize)
+            {
+                _device->FreeMemmory(_vertexBufferMemory);
+                _device->DestroyBuffer(_vertexBuffer);
+
+                _vertexBuffer = VK_NULL_HANDLE;
+            }
+
+            if (_vertexBuffer == VK_NULL_HANDLE)
+            {
+                _vertexBufferSize = curVertexBufferSize;
+                _vertexBuffer = _device->CreateBuffer(curVertexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+                _vertexBufferMemory = _device->AllocateAndBindBufferMemory(_vertexBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            }
+
+            if (_indexBuffer != VK_NULL_HANDLE && curIndexBufferSize > _indexesBufferSize)
+            {
+                _device->FreeMemmory(_indexBufferMemory);
+                _device->DestroyBuffer(_indexBuffer);
+
+                _indexBuffer = VK_NULL_HANDLE;
+            }
+
+            if (_indexBuffer == VK_NULL_HANDLE)
+            {
+                _indexesBufferSize = curIndexBufferSize;
+                _indexBuffer = _device->CreateBuffer(curIndexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+                _indexBufferMemory = _device->AllocateAndBindBufferMemory(_indexBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            }
+
+            void *verticesDataPtr = nullptr;
+            vkMapMemory(_device->GetRawDevice(), _stagingBufferMemory, 0, curVertexBufferSize, 0, &verticesDataPtr);
+            memcpy(verticesDataPtr, vertices.data(), curVertexBufferSize);
+            vkUnmapMemory(_device->GetRawDevice(), _stagingBufferMemory);
+
+            CopyBuffer(_stagingBuffer, _vertexBuffer, curVertexBufferSize);
+
+
+            void *indexesDataPtr = nullptr;
+            vkMapMemory(_device->GetRawDevice(), _stagingBufferMemory, 0, curIndexBufferSize, 0, &indexesDataPtr);
+            memcpy(indexesDataPtr, indexes.data(), curIndexBufferSize);
+            vkUnmapMemory(_device->GetRawDevice(), _stagingBufferMemory);
+
+            CopyBuffer(_stagingBuffer, _indexBuffer, curVertexBufferSize);
+
+            VkBuffer vertexBuffers[] = {_vertexBuffer};
+            VkDeviceSize offsets[] = {0};
+
+            vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, vertexBuffers, offsets);
+            vkCmdBindIndexBuffer(vkCommandBuffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+            void *uniformDataPtr = nullptr;
+            vkMapMemory(_device->GetRawDevice(), _uniformBufferMemory, 0, sizeof(glm::mat4x4), 0, &uniformDataPtr);
+            memcpy(uniformDataPtr, &MVP, sizeof(glm::mat4x4));
+            vkUnmapMemory(_device->GetRawDevice(), _uniformBufferMemory);
+
+            vkCmdBindDescriptorSets(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vkPipelineLayout, 0, 1, &_descriptorSet, 0, nullptr);
+            vkCmdDraw(vkCommandBuffer, vertices.size(), 1, 0, 0);
         }
-
-        vkUnmapMemory(_device->GetRawDevice(), _stagingBufferMemory);
-
-        CopyBuffer(_stagingBuffer, _vertexBuffer, totalBufferSize);
-
-        vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline);
-
-        VkBuffer vertexBuffers[] = {_vertexBuffer};
-        VkDeviceSize offsets[] = {0};
-
-        vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, vertexBuffers, offsets);
-        vkCmdDraw(vkCommandBuffer, vertexCounts, 1, 0, 0);
     }
 
     vkCmdEndRenderPass(vkCommandBuffer);

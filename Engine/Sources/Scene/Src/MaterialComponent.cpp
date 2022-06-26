@@ -4,10 +4,10 @@ TEMaterialComponent::TEMaterialComponent() : TESceneComponent(EComponentType::Ma
 {
 }
 
-const std::string &TEMaterialComponent::GetShaderPath(const EMaterialShaderType &type)
+std::optional<std::reference_wrapper<std::string>> TEMaterialComponent::GetShaderPath(const EMaterialShaderType &type)
 {
     if (_shaderMap.find(type) == _shaderMap.end())
-        return std::string();
+        return std::nullopt;
     else
         return _shaderMap[type];
 }

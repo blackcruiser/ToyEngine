@@ -50,12 +50,16 @@ private:
 	VkPipelineLayout _vkPipelineLayout;
 	std::map<size_t, VkPipeline> _pipelines;
 
-	VkBuffer _stagingBuffer, _vertexBuffer;
-	VkDeviceMemory _stagingBufferMemory, _vertexBufferMemory;
-	size_t _stagingBufferSize, _vertexBufferSize;
+	VkBuffer _stagingBuffer, _vertexBuffer, _indexBuffer, _uniformBuffer;
+	VkDeviceMemory _stagingBufferMemory, _vertexBufferMemory, _indexBufferMemory, _uniformBufferMemory;
+	size_t _stagingBufferSize, _vertexBufferSize, _indexesBufferSize;
 
 	VkSemaphore _imageAvailableSemaphore, _renderFinishedSemaphore;
 	VkFence _inFlightFence;
+
+	VkDescriptorPool _descriptorPool;
+	VkDescriptorSetLayout _descriptorLayout;
+	VkDescriptorSet _descriptorSet;
 
 	TEPtr<TECommandPool> _commandPool;
 	TECommandBuffer *_commandBuffer;

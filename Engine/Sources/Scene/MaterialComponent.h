@@ -4,6 +4,7 @@
 #include "SceneComponent.h"
 
 #include <string>
+#include <optional>
 
 enum class EMaterialShaderType : int
 {
@@ -17,7 +18,7 @@ public:
     TEMaterialComponent();
     ~TEMaterialComponent();
 
-    const std::string &GetShaderPath(const EMaterialShaderType &type);
+    std::optional<std::reference_wrapper<std::string>> GetShaderPath(const EMaterialShaderType &type);
 
 private:
     // EBlendType _blendType;

@@ -5,12 +5,13 @@
 enum class EComponentType : int
 {
     Invalid = 0,
-    Transform = 1,
-    Mesh = 2,
-    Material = 3,
+    Camera,
+    Transform,
+    Mesh,
+    Material,
 };
 
-class SceneObject;
+class TESceneObject;
 
 class TESceneComponent
 {
@@ -20,7 +21,10 @@ public:
 
     const EComponentType GetType() const;
 
+    void SetObject(TEWeakPtr<TESceneObject> object);
+    TEWeakPtr<TESceneObject> GetObject();
+
 private:
     EComponentType _type;
-    TEWeakPtr<SceneObject> _scencObject;
+    TEWeakPtr<TESceneObject> _sceneObject;
 };

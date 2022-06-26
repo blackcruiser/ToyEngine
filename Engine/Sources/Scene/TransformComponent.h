@@ -5,13 +5,14 @@
 
 #include <glm/glm.hpp>
 
-class TransformComponent : public TESceneComponent
+class TETransformComponent : public TESceneComponent
 {
 public:
-    TransformComponent();
-    ~TransformComponent();
+    TETransformComponent();
+    ~TETransformComponent();
 
     void SetTransform(const glm::mat4x4 &transform);
+    const glm::mat4x4 &GetTransform();
 
 private:
     glm::mat4x4 _transform;

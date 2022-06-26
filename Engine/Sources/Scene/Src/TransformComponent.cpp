@@ -1,14 +1,19 @@
 #include "TransformComponent.h"
 
-TransformComponent::TransformComponent(): TESceneComponent(EComponentType::Transform)
+TETransformComponent::TETransformComponent(): TESceneComponent(EComponentType::Transform), _transform(1)
 {
 }
 
-TransformComponent::~TransformComponent()
+TETransformComponent::~TETransformComponent()
 {
 }
 
-void TransformComponent::SetTransform(const glm::mat4x4 &transform)
+void TETransformComponent::SetTransform(const glm::mat4x4 &transform)
 {
     _transform = transform;
+}
+
+const glm::mat4x4 &TETransformComponent::GetTransform()
+{
+    return _transform;
 }

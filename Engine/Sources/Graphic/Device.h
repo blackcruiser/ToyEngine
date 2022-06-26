@@ -38,7 +38,7 @@ public:
     VkSwapchainKHR CreateSwapchain(uint32_t imageCount, VkFormat imageFormat, VkColorSpaceKHR colorSpace, VkExtent2D extent, VkSurfaceTransformFlagBitsKHR preTransform, VkPresentModeKHR presentMode);
     void DestroySwapchain(VkSwapchainKHR swapchain);
 
-    VkPipelineLayout CreatePipelineLayout();
+    VkPipelineLayout CreatePipelineLayout(VkDescriptorSetLayout descriptorSetLayout);
     void DestroyPipelineLayout(VkPipelineLayout pipelineLayout);
 
     VkPipeline CreateGraphicPipeline(VkShaderModule vertexShaderModule, VkShaderModule fragmentShaderModule, VkExtent2D extent, VkPipelineLayout pipelineLayout, VkRenderPass renderPass);
@@ -46,6 +46,16 @@ public:
 
     VkRenderPass CreateRenderPass(VkFormat format);
     void DestroyRenderPass(VkRenderPass renderPass);
+
+    VkDescriptorSetLayout CreateDescriptorSetLayout(VkDescriptorType type, uint32_t descriptorCount, VkShaderStageFlags stageFlags);
+    void DestroyDescriptorSetLayout(VkDescriptorSetLayout descriptorSetLayout);
+
+    VkDescriptorPool CreateDescriptorPool(VkDescriptorType type, uint32_t descriptorCount);
+    void DestroyDescriptorPool(VkDescriptorPool descriptorPool);
+
+    VkDescriptorSet AllocateDescriptorSet(VkDescriptorPool descriptorPool, uint32_t descriptorSetCount, const VkDescriptorSetLayout *pSetLayouts);
+
+    void UpdateDescriptorSet(VkDescriptorSet descriptorSet, VkDescriptorType descriptorType, VkBuffer buffer, VkDeviceSize size);
 
     void WaitIdle();
 
