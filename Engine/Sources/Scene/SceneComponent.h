@@ -9,6 +9,7 @@ enum class EComponentType : int
     Transform,
     Mesh,
     Material,
+    Script,
 };
 
 class TESceneObject;

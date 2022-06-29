@@ -8,9 +8,6 @@ class TECameraComponent;
 class TEScene
 {
 public:
-    static TEPtr<TEScene> CreateSampleScene();
-
-public:
     TEScene();
 
     void AddObject(TEPtr<TESceneObject> object);

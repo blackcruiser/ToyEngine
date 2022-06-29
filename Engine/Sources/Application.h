@@ -12,13 +12,15 @@ class TEWindow;
 class TESurface;
 class TERendererInterface;
 
+class TEScene;
+
 class TEApplication
 {
 public:
     TEApplication();
     ~TEApplication();
 
-    void Run();
+    void Run(TEPtr<TEScene> scene);
 
 private:
     void _InitGlfw();

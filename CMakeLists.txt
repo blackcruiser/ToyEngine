@@ -18,6 +18,13 @@ file(GLOB GraphicIncludes "${GraphicSourceDirectory}/*.h")
 aux_source_directory(${GraphicSourceDirectory}/Src GraphicSources)
 source_group(TREE ${EngineSourcesDirectory} FILES ${GraphicSources} ${GraphicIncludes})
 
+## Input Module
+set(InputSourceDirectory ${EngineSourcesDirectory}/Input)
+# should not use file(GLOB ...)
+file(GLOB InputIncludes "${InputSourceDirectory}/*.h")
+aux_source_directory(${InputSourceDirectory}/Src GraphicSources)
+source_group(TREE ${EngineSourcesDirectory} FILES ${InputSources} ${InputIncludes})
+
 ## Render Module
 set(RenderSourceDirectory ${EngineSourcesDirectory}/Render)
 # should not use file(GLOB ...)
@@ -72,10 +79,10 @@ add_subdirectory(${ThirdPartiesSourcesDirectory}/glfw)
 file(GLOB EngineIncludes "${EngineSourcesDirectory}/*.h")
 aux_source_directory(${EngineSourcesDirectory} EngineSources)
 
-add_library(Engine ${GraphicSources} ${GraphicIncludes} ${RenderSources} ${RenderIncludes} ${SceneSources} ${SceneIncludes} ${EngineSources} ${EngineIncludes})
+add_library(Engine ${GraphicSources} ${GraphicIncludes} ${InputSources} ${InputIncludes} ${RenderSources} ${RenderIncludes} ${SceneSources} ${SceneIncludes} ${EngineSources} ${EngineIncludes})
 target_include_directories(Engine 
                             PUBLIC ${EngineSourcesDirectory}
-                            PRIVATE ${GraphicSourceDirectory} ${RenderSourceDirectory} ${SceneSourceDirectory})
+                            PRIVATE ${GraphicSourceDirectory} ${InputSourceDirectory} ${RenderSourceDirectory} ${SceneSourceDirectory})
 target_link_libraries(Engine PUBLIC glfw glm::glm ${Vulkan})
 
 

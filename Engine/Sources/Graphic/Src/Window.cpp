@@ -1,4 +1,5 @@
 #include "Window.h"
+#include "Input/InputSystem.h"
 
 #include <glfw/glfw3.h>
 
@@ -22,6 +23,23 @@ TEWindow::~TEWindow()
     glfwDestroyWindow(_glfwWindow);
 }
 
+glm::ivec2 TEWindow::GetFramebufferSize()
+{
+    glm::ivec2 size;
+    glfwGetFramebufferSize(_glfwWindow, &size.x, &size.y);
+
+    return size;
+}
+
+void TEWindow::RegisterInput(const TEInputSystem &inputSystem)
+{
+    glfwSetCursorPosCallback(_glfwWindow, TEInputSystem::cursor_position_callback);
+}
+
+void TEWindow::UnregisterInput(const TEInputSystem &inputSystem)
+{
+}
+
 bool TEWindow::ShouldClose()
 {
     return glfwWindowShouldClose(_glfwWindow);
@@ -30,12 +48,4 @@ bool TEWindow::ShouldClose()
 GLFWwindow *TEWindow::GetRawWindow()
 {
     return _glfwWindow;
-}
-
-glm::ivec2 TEWindow::GetFramebufferSize()
-{
-    glm::ivec2 size;
-    glfwGetFramebufferSize(_glfwWindow, &size.x, &size.y);
-
-    return size;
 }

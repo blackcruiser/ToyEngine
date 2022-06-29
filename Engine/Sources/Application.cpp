@@ -4,6 +4,7 @@
 #include "Graphic/Window.h"
 #include "Graphic/Device.h"
 #include "Graphic/Surface.h"
+#include "Input/InputSystem.h"
 #include "Scene/Scene.h"
 
 #include <string>
@@ -21,6 +22,8 @@ TEApplication::TEApplication() : _device(nullptr), _window(nullptr), _renderer(n
     _CreateVulkanInstance();
 
     _window = std::make_shared<TEWindow>(AppName, kWidth, kHeight);
+    _window->RegisterInput(TEInputSystem::GetInstance());
+
     _GPU = std::make_shared<TEGPU>(_vkInstance);
     _surface = std::make_shared<TESurface>(_vkInstance, _GPU, _window);
     _device = std::make_shared<TEDevice>(_GPU, _surface);
@@ -33,6 +36,8 @@ TEApplication::~TEApplication()
     _device.reset();
     _surface.reset();
     _GPU.reset();
+
+    _window->UnregisterInput(TEInputSystem::GetInstance());
     _window.reset();
 
     _CleanupVulkan();
@@ -80,10 +85,8 @@ void TEApplication::_CreateVulkanInstance()
     }
 }
 
-void TEApplication::Run()
+void TEApplication::Run(TEPtr<TEScene> scene)
 {
-    TEPtr<TEScene> scene = TEScene::CreateSampleScene();
-
     while (!_window->ShouldClose())
     {
         glfwPollEvents();
