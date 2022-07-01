@@ -89,9 +89,20 @@ target_link_libraries(Engine PUBLIC glfw glm::glm ${Vulkan})
 # Samples
 set(SamplesDirectory ${CMAKE_CURRENT_LIST_DIR}/Samples/Sources)
 
-aux_source_directory(${SamplesDirectory}/Win64 SamplesSources)
-add_executable(Samples ${SamplesSources}) 
+## Sample Component Module
+set(SampleComponentDirectory ${SamplesDirectory}/Components)
+# should not use file(GLOB ...)
+file(GLOB SampleComponentIncludes "${SampleComponentDirectory}/*.h")
+aux_source_directory(${SampleComponentDirectory} SampleComponentSources)
+
+## Sample platform
+file(GLOB SamplePlatformIncludes "${SamplesDirectory}/Win64/*.h")
+aux_source_directory(${SamplesDirectory}/Win64 SamplePlatformSources)
+
+add_executable(Samples ${SampleComponentSources} ${SampleComponentIncludes} ${SamplePlatformSources} ${SamplePlatformIncludes}) 
+target_include_directories(Samples PRIVATE ${SamplesDirectory})
 target_link_libraries(Samples PRIVATE Engine) 
+
 
 # include(CMakePrintHelpers)
 # cmake_print_properties(TARGETS Samples Engine PROPERTIES

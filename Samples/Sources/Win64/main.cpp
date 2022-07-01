@@ -1,3 +1,4 @@
+#include "CoreDefine.h"
 #include "Application.h"
 #include "Scene/Scene.h"
 #include "Scene/SceneObject.h"
@@ -5,6 +6,7 @@
 #include "Scene/MeshComponent.h"
 #include "Scene/MaterialComponent.h"
 #include "Scene/CameraComponent.h"
+#include "Components/CameraControlComponent.h"
 
 TEPtr<TEScene> CreateSampleScene()
 {
@@ -33,7 +35,9 @@ TEPtr<TEScene> CreateSampleScene()
 
     TEPtr<TESceneObject> cameraObject = std::make_shared<TESceneObject>();
     TEPtr<TECameraComponent> camera = std::make_shared<TECameraComponent>();
+    TEPtr<CameraControlComponent> cameraControl = std::make_shared<CameraControlComponent>();
     cameraObject->AddComponent(camera);
+    cameraObject->AddComponent(cameraControl);
 
     scene->SetCamera(camera);
 

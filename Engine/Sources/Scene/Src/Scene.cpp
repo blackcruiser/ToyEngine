@@ -1,6 +1,7 @@
 #include "Scene.h"
 #include "SceneObject.h"
 #include "CameraComponent.h"
+#include "ScriptComponent.h"
 
 #include <stdexcept>
 
@@ -10,12 +11,20 @@ TEScene::TEScene()
 
 void TEScene::AddObject(TEPtr<TESceneObject> object)
 {
+    TEPtrArr<TEScriptComponent> scriptComponents = object->GetComponents<TEScriptComponent>();
+    for (const TEPtr<TEScriptComponent> &scriptComponent : scriptComponents)
+        scriptComponent->OnAttached();
+
     _objects.push_back(object);
 }
 
 void TEScene::RemoveObject(TEPtr<TESceneObject> object)
 {
     _objects.erase(std::remove(_objects.begin(), _objects.end(), object));
+
+    TEPtrArr<TEScriptComponent> scriptComponents = object->GetComponents<TEScriptComponent>();
+    for (const TEPtr<TEScriptComponent> &scriptComponent : scriptComponents)
+        scriptComponent->OnDetached();
 }
 
 const TEPtrArr<TESceneObject> &TEScene::GetObjects()

@@ -25,6 +25,11 @@ public:
     void SetObject(TEWeakPtr<TESceneObject> object);
     TEWeakPtr<TESceneObject> GetObject();
 
+    // liftCycle
+    virtual void OnAttached(){};
+    virtual void Update(float deltaTime){};
+    virtual void OnDetached(){};
+
 private:
     EComponentType _type;
     TEWeakPtr<TESceneObject> _sceneObject;

@@ -5,7 +5,6 @@
 
 #include <glm/glm.hpp>
 
-#include <map>
 #include <memory>
 
 class TESceneObject : public std::enable_shared_from_this<TESceneObject>
@@ -18,8 +17,7 @@ public:
     requires std::is_convertible<T, TESceneComponent>::value
     void AddComponent(TEPtr<T> component)
     {
-        size_t hash = typeid(T).hash_code();
-        _componentMap.insert(std::make_pair(hash, component));
+        _componentArr.push_back(component);
 
         component->SetObject(weak_from_this());
     }
@@ -28,15 +26,32 @@ public:
     requires std::is_convertible<T, TESceneComponent>::value
     TEPtr<T> GetComponent()
     {
-        size_t hash = typeid(T).hash_code();
-        auto iter = _componentMap.find(hash);
-        if (iter == _componentMap.end())
-            return nullptr;
+        for (const TEPtr<TESceneComponent>& component : _componentArr)
+        {
+            TEPtr<T> result = std::dynamic_pointer_cast<T>(component);
+            if (result != nullptr)
+                return result;
+        }
 
-        TEPtr<TESceneComponent> component = iter->second;
-        return std::static_pointer_cast<T>(component);
+        return nullptr;
+    }
+
+    template <typename T>
+    requires std::is_convertible<T, TESceneComponent>::value
+    TEPtrArr<T> GetComponents()
+    {
+        TEPtrArr<T> components;
+
+        for (const TEPtr<TESceneComponent> &component : _componentArr)
+        {
+            TEPtr<T> result =  std::dynamic_pointer_cast<T>(component);
+            if (result != nullptr)
+                components.push_back(result);
+        }
+
+        return components;
     }
 
 private:
-    std::multimap<size_t, TEPtr<TESceneComponent>> _componentMap;
+    TEPtrArr<TESceneComponent> _componentArr;
 };

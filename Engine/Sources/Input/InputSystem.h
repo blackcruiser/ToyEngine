@@ -4,23 +4,25 @@
 
 #include <GLFW/glfw3.h>
 
-typedef void (*InputFunc)(double xpos, double ypos);
+#include <functional>
+
+typedef std::function<void(double xpos, double ypos)> InputAction;
 
 class TEInputSystem
 {
 public:
-    static const TEInputSystem &GetInstance();
+    static TEInputSystem &GetInstance();
 
 private:
     TEInputSystem();
     ~TEInputSystem();
 
 public:
-    void RegisterNotify(InputFunc func);
-    void UnregisterNotify(InputFunc func);
+    size_t RegisterAction(InputAction action);
+    void UnregisterAction(size_t key);
 
     static void cursor_position_callback(GLFWwindow *window, double xpos, double ypos);
 
 private:
-    std::vector<InputFunc> _inputFuncs;
+    std::vector<InputAction> _inputActions;
 };

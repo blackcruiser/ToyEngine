@@ -6,6 +6,6 @@ TESceneObject::TESceneObject()
 
 TESceneObject::~TESceneObject()
 {
-    _componentMap.clear();
+    _componentArr.clear();
 }
 

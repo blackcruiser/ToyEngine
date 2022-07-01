@@ -3,7 +3,7 @@
 #include <iostream>
 #include <format>
 
-const TEInputSystem &TEInputSystem::GetInstance()
+TEInputSystem &TEInputSystem::GetInstance()
 {
     static TEInputSystem instance;
 
@@ -18,17 +18,19 @@ TEInputSystem::~TEInputSystem()
 {
 }
 
-void TEInputSystem::RegisterNotify(InputFunc func)
+size_t TEInputSystem::RegisterAction(InputAction action)
 {
+    _inputActions.push_back(action);
+    return _inputActions.size() - 1;
 }
 
-void TEInputSystem::UnregisterNotify(InputFunc func)
+void TEInputSystem::UnregisterAction(size_t key)
 {
+    _inputActions.erase(_inputActions.begin() + key);
 }
 
 void TEInputSystem::cursor_position_callback(GLFWwindow *window, double xpos, double ypos)
 {
-    std::cout << std::format("{0}, {1}", xpos, ypos) << std::endl;
-    for (const InputFunc &func : GetInstance()._inputFuncs)
-        func(xpos, ypos);
+    for (const InputAction &action : GetInstance()._inputActions)
+        action(xpos, ypos);
 }
