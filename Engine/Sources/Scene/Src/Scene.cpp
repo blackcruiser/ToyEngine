@@ -34,7 +34,7 @@ const TEPtrArr<TESceneObject> &TEScene::GetObjects()
 
 void TEScene::SetCamera(TEPtr<TECameraComponent> cameraComponent)
 {
-    if (cameraComponent == nullptr || cameraComponent->GetObject().expired())
+    if (cameraComponent == nullptr)
         throw std::runtime_error("cameraComponent is null or object is null");
 
     TEWeakPtr<TESceneObject> object = cameraComponent->GetObject();

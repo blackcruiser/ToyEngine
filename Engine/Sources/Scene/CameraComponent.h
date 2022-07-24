@@ -11,12 +11,11 @@ public:
     TECameraComponent();
     ~TECameraComponent();
 
-    void SetViewMatrix(const glm::mat4x4 &matrix);
-    const glm::mat4x4& GetViewMatrix();
+    glm::mat4x4 GetViewMatrix();
 
     void SetProjectMatrix(const glm::mat4x4 &matrix);
     const glm::mat4x4& GetProjectMatrix();
 
 private:
-    glm::mat4x4 _viewMatrix, _projectMatrix;
+    glm::mat4x4 _projectMatrix;
 };

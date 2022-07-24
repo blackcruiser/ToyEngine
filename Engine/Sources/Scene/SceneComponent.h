@@ -22,8 +22,8 @@ public:
 
     const EComponentType GetType() const;
 
-    void SetObject(TEWeakPtr<TESceneObject> object);
-    TEWeakPtr<TESceneObject> GetObject();
+    void SetObject(TEPtr<TESceneObject> object);
+    TEPtr<TESceneObject> GetObject();
 
     // liftCycle
     virtual void OnAttached(){};

@@ -13,12 +13,12 @@ const EComponentType TESceneComponent::GetType() const
     return _type;
 }
 
-void TESceneComponent::SetObject(TEWeakPtr<TESceneObject> object)
+void TESceneComponent::SetObject(TEPtr<TESceneObject> object)
 {
     _sceneObject = object;
 }
 
-TEWeakPtr<TESceneObject> TESceneComponent::GetObject()
+TEPtr<TESceneObject> TESceneComponent::GetObject()
 {
-    return _sceneObject;
+    return _sceneObject.lock();
 }

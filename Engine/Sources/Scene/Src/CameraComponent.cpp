@@ -1,8 +1,10 @@
 #include "CameraComponent.h"
+#include "TransformComponent.h"
+#include "SceneObject.h"
 
 #include <glm/ext.hpp>
 
-TECameraComponent::TECameraComponent() : TESceneComponent(EComponentType::Camera), _viewMatrix(glm::identity<glm::mat4x4>()), _projectMatrix(1)
+TECameraComponent::TECameraComponent() : TESceneComponent(EComponentType::Camera), _projectMatrix(glm::identity<glm::mat4x4>())
 {
 }
 
@@ -10,22 +12,25 @@ TECameraComponent::~TECameraComponent()
 {
 }
 
-void TECameraComponent::SetViewMatrix(const glm::mat4x4 &matrix)
+glm::mat4x4 TECameraComponent::GetViewMatrix()
 {
-    _viewMatrix = matrix;
+	glm::mat4x4 viewMatrix{ glm::identity<glm::mat4x4>() };
+
+	TEPtr<TETransformComponent> transformComponent = GetObject() ? GetObject()->GetComponent<TETransformComponent>() : nullptr;
+	if (transformComponent != nullptr)
+	{
+		viewMatrix = glm::inverse(transformComponent->GetTransform());
+	}
+
+	return viewMatrix;
 }
 
-const glm::mat4x4 &TECameraComponent::GetViewMatrix()
+void TECameraComponent::SetProjectMatrix(const glm::mat4x4& matrix)
 {
-    return _viewMatrix;
+	_projectMatrix = matrix;
 }
 
-void TECameraComponent::SetProjectMatrix(const glm::mat4x4 &matrix)
+const glm::mat4x4& TECameraComponent::GetProjectMatrix()
 {
-    _projectMatrix = matrix;
-}
-
-const glm::mat4x4 &TECameraComponent::GetProjectMatrix()
-{
-    return _projectMatrix;
+	return _projectMatrix;
 }

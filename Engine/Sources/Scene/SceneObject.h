@@ -19,7 +19,7 @@ public:
     {
         _componentArr.push_back(component);
 
-        component->SetObject(weak_from_this());
+        component->SetObject(shared_from_this());
     }
 
     template <typename T>
