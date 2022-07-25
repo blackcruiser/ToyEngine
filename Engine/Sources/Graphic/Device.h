@@ -20,8 +20,8 @@ public:
     VkDeviceMemory AllocateAndBindBufferMemory(VkBuffer buffer, VkMemoryPropertyFlags properties);
     void FreeMemmory(VkDeviceMemory deviceMemory);
 
-    VkSemaphore CreateSemaphore();
-    void DestroySemaphore(VkSemaphore semaphore);
+    VkSemaphore CreateGraphicSemaphore();
+    void DestroyGraphicSemaphore(VkSemaphore semaphore);
 
     VkFence CreateFence(bool isSignaled);
     void DestroyFence(VkFence fence);

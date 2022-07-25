@@ -29,6 +29,11 @@ TEPtr<TEScene> CreateSampleScene()
     meshComponent->SetIndexes(indexes);
     meshObject->AddComponent(meshComponent);
 
+    TEPtr<TEMaterialComponent> meshMaterialComponent = std::make_shared<TEMaterialComponent>();
+    meshMaterialComponent->SetShader(EMaterialShaderType::Vertex, "LocalToClipSpaceVertexShader.glsl");
+    meshMaterialComponent->SetShader(EMaterialShaderType::Fragment, "LambertBlinnPhoneFragmentShader.glsl");
+    meshObject->AddComponent(meshMaterialComponent);
+
     scene->AddObject(meshObject);
 
 

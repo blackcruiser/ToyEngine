@@ -120,7 +120,7 @@ void TEDevice::FreeMemmory(VkDeviceMemory deviceMemory)
     vkFreeMemory(_vkDevice, deviceMemory, nullptr);
 }
 
-VkSemaphore TEDevice::CreateSemaphore()
+VkSemaphore TEDevice::CreateGraphicSemaphore()
 {
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -135,7 +135,7 @@ VkSemaphore TEDevice::CreateSemaphore()
     return semaphore;
 }
 
-void TEDevice::DestroySemaphore(VkSemaphore semaphore)
+void TEDevice::DestroyGraphicSemaphore(VkSemaphore semaphore)
 {
     vkDestroySemaphore(_vkDevice, semaphore, nullptr);
 }

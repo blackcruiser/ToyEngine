@@ -5,6 +5,7 @@
 
 #include <string>
 #include <optional>
+#include <filesystem>
 
 enum class EMaterialShaderType : int
 {
@@ -12,15 +13,24 @@ enum class EMaterialShaderType : int
     Fragment,
 };
 
+
+struct TEMaterialShaderInfo
+{
+    std::filesystem::path filePath;
+    std::filesystem::path bytecodePath;
+};
+
+
 class TEMaterialComponent : public TESceneComponent
 {
 public:
     TEMaterialComponent();
     ~TEMaterialComponent();
 
-    std::optional<std::reference_wrapper<std::string>> GetShaderPath(const EMaterialShaderType &type);
+    void SetShader(const EMaterialShaderType& type, const std::string& shaderPath);
+    std::optional<std::reference_wrapper<TEMaterialShaderInfo>> GetShaderInfo(const EMaterialShaderType &type);
 
 private:
     // EBlendType _blendType;
-    std::map<EMaterialShaderType, std::string> _shaderMap;
+    std::map<EMaterialShaderType, TEMaterialShaderInfo> _shaderMap;
 };

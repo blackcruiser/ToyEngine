@@ -9,12 +9,19 @@
 #include "Graphic/CommandPool.h"
 #include "Graphic/CommandBuffer.h"
 
+#define UNICODE
+#define NOMINMAX
+#include <Windows.h>
+
 #include <stdexcept>
 #include <algorithm>
 #include <fstream>
 #include <array>
 #include <cstddef>
 #include <functional>
+#include <format>
+#include <filesystem>
+
 
 static std::vector<char> readFile(const std::string& filename)
 {
@@ -45,8 +52,8 @@ TEForwardRenderer::TEForwardRenderer(TEPtr<TEDevice> device, TEPtr<TESurface> su
     _commandPool = std::make_shared<TECommandPool>(_device);
     _commandBuffer = _commandPool->CreateCommandBuffer(_commandPool);
 
-    _imageAvailableSemaphore = _device->CreateSemaphore();
-    _renderFinishedSemaphore = _device->CreateSemaphore();
+    _imageAvailableSemaphore = _device->CreateGraphicSemaphore();
+    _renderFinishedSemaphore = _device->CreateGraphicSemaphore();
 
     _inFlightFence = _device->CreateFence(true);
 
@@ -78,8 +85,8 @@ TEForwardRenderer::~TEForwardRenderer()
     _device->DestroyDescriptorSetLayout(_descriptorLayout);
     _device->DestroyDescriptorPool(_descriptorPool);
 
-    _device->DestroySemaphore(_imageAvailableSemaphore);
-    _device->DestroySemaphore(_renderFinishedSemaphore);
+    _device->DestroyGraphicSemaphore(_imageAvailableSemaphore);
+    _device->DestroyGraphicSemaphore(_renderFinishedSemaphore);
     _device->DestroyFence(_inFlightFence);
 
     _device->DestroyPipelineLayout(_vkPipelineLayout);
@@ -109,16 +116,57 @@ TEForwardRenderer::~TEForwardRenderer()
     _device->DestroySwapchain(_vkSwapchain);
 }
 
-VkPipeline TEForwardRenderer::CreatePipeline(TEPtr<TEMaterialComponent> material)
+VkPipeline TEForwardRenderer::CreatePipeline(TEPtr<TEMaterialComponent> materialComponent)
 {
-    auto vertShaderCode = readFile("Shaders/VertexShader.spv");
-    auto fragShaderCode = readFile("Shaders/FragmentShader.spv");
+    auto loadAndCreateShaderModule = [&](TEPtr<TEMaterialComponent> materialComponent, EMaterialShaderType shaderType) -> VkShaderModule {
+        std::optional<std::reference_wrapper<TEMaterialShaderInfo>> shaderInfoWrapper = materialComponent->GetShaderInfo(shaderType);
+        if (shaderInfoWrapper.has_value() == false)
+            return VK_NULL_HANDLE;
+
+        TEMaterialShaderInfo& shaderInfo = shaderInfoWrapper.value();
+        if (shaderInfo.bytecodePath.empty())
+        {
+            STARTUPINFO si;
+            PROCESS_INFORMATION pi;
+
+            ZeroMemory(&si, sizeof(si));
+            ZeroMemory(&pi, sizeof(pi));
+            si.cb = sizeof(si);
+
+            const std::filesystem::path shaderDirectoryPath = "../Engine/Shaders";
+
+            std::wstring shaderStage = shaderType == EMaterialShaderType::Vertex ? L"vertex" : L"fragment";
+            std::filesystem::path shaderPath = shaderDirectoryPath / shaderInfo.filePath;
+            std::filesystem::path byteCodePath = std::filesystem::temp_directory_path() / (shaderInfo.filePath.stem() += ".spv");
+
+            std::wstring arg = std::format(L"glslc.exe -fshader-stage={} -o {} {}", shaderStage, byteCodePath.wstring(), shaderPath.wstring());
+
+            if (CreateProcess(NULL, arg.data(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
+            {
+                WaitForSingleObject(pi.hProcess, INFINITE);
+
+                DWORD exitCode;
+                GetExitCodeProcess(pi.hProcess, &exitCode);
+                CloseHandle(pi.hProcess);
+                CloseHandle(pi.hThread);
+            }
+
+            if (std::filesystem::exists(byteCodePath))
+                shaderInfo.bytecodePath = byteCodePath;
+            else
+                throw std::runtime_error("Shader compile failed");
+        }
+
+        std::vector<char> byteCode = readFile(shaderInfo.bytecodePath.string());
+        VkShaderModule vkShaderModule = _device->CreateShaderModule(byteCode);
+        _vkShaderModules.push_back(vkShaderModule);
+
+        return vkShaderModule;
+    };
 
     // Shader
-    VkShaderModule vkVerterShaderModule = _device->CreateShaderModule(vertShaderCode);
-    _vkShaderModules.push_back(vkVerterShaderModule);
-    VkShaderModule vkFragmentShaderModule = _device->CreateShaderModule(fragShaderCode);
-    _vkShaderModules.push_back(vkFragmentShaderModule);
+    VkShaderModule vkVerterShaderModule = loadAndCreateShaderModule(materialComponent, EMaterialShaderType::Vertex);
+    VkShaderModule vkFragmentShaderModule = loadAndCreateShaderModule(materialComponent, EMaterialShaderType::Fragment);
 
     _vkPipelineLayout = _device->CreatePipelineLayout(_descriptorLayout);
     VkPipeline vkPipeline = _device->CreateGraphicPipeline(vkVerterShaderModule, vkFragmentShaderModule, _surface->GetExtent(), _vkPipelineLayout, _vkRenderPass);
@@ -238,6 +286,8 @@ void TEForwardRenderer::RenderFrame(TEPtr<TEScene> scene)
             continue;
 
         TEPtr<TEMaterialComponent> materialComponent = objectArr[0]->GetComponent<TEMaterialComponent>();
+        if (materialComponent == nullptr)
+            continue;
 
         VkPipeline vkPipeline;
 
