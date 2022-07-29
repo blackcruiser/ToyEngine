@@ -168,8 +168,30 @@ VkPipeline TEForwardRenderer::CreatePipeline(TEPtr<TEMaterialComponent> material
     VkShaderModule vkVerterShaderModule = loadAndCreateShaderModule(materialComponent, EMaterialShaderType::Vertex);
     VkShaderModule vkFragmentShaderModule = loadAndCreateShaderModule(materialComponent, EMaterialShaderType::Fragment);
 
+
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(Vertex);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions(3);
+    attributeDescriptions[0].binding = 0;
+    attributeDescriptions[0].location = 0;
+    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[0].offset = offsetof(Vertex, pos);
+
+    attributeDescriptions[1].binding = 0;
+    attributeDescriptions[1].location = 1;
+    attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[1].offset = offsetof(Vertex, normal);
+
+    attributeDescriptions[2].binding = 0;
+    attributeDescriptions[2].location = 2;
+    attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+
     _vkPipelineLayout = _device->CreatePipelineLayout(_descriptorLayout);
-    VkPipeline vkPipeline = _device->CreateGraphicPipeline(vkVerterShaderModule, vkFragmentShaderModule, _surface->GetExtent(), _vkPipelineLayout, _vkRenderPass);
+    VkPipeline vkPipeline = _device->CreateGraphicPipeline(vkVerterShaderModule, vkFragmentShaderModule, _surface->GetExtent(), bindingDescription, attributeDescriptions, _vkPipelineLayout, _vkRenderPass);
 
     return vkPipeline;
 }
@@ -312,13 +334,13 @@ void TEForwardRenderer::RenderFrame(TEPtr<TEScene> scene)
             if (meshComponent == nullptr)
                 continue;
 
-            const std::vector<glm::vec3>& vertices = meshComponent->GetVertices();
-            const std::vector<int>& indexes = meshComponent->GetIndexes();
+            const std::vector<Vertex>& vertices = meshComponent->GetVertices();
+            const std::vector<uint32_t>& indexes = meshComponent->GetIndexes();
 
             TEPtr<TETransformComponent> transformComponent = object->GetComponent<TETransformComponent>();
             glm::mat4x4 MVP = VP * transformComponent->GetTransform();
 
-            size_t curVertexBufferSize = vertices.size() * sizeof(glm::vec3);
+            size_t curVertexBufferSize = vertices.size() * sizeof(Vertex);
             size_t curIndexBufferSize = indexes.size() * sizeof(int);
 
             if (_stagingBuffer != VK_NULL_HANDLE && (curVertexBufferSize > _stagingBufferSize || curIndexBufferSize > _stagingBufferSize))

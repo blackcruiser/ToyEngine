@@ -41,7 +41,7 @@ public:
     VkPipelineLayout CreatePipelineLayout(VkDescriptorSetLayout descriptorSetLayout);
     void DestroyPipelineLayout(VkPipelineLayout pipelineLayout);
 
-    VkPipeline CreateGraphicPipeline(VkShaderModule vertexShaderModule, VkShaderModule fragmentShaderModule, VkExtent2D extent, VkPipelineLayout pipelineLayout, VkRenderPass renderPass);
+    VkPipeline CreateGraphicPipeline(VkShaderModule vertexShaderModule, VkShaderModule fragmentShaderModule, VkExtent2D extent, const VkVertexInputBindingDescription& bindingDescription,  std::vector<VkVertexInputAttributeDescription> attributeDescriptions, VkPipelineLayout pipelineLayout, VkRenderPass renderPass);
     void DestroyPipeline(VkPipeline pipeline);
 
     VkRenderPass CreateRenderPass(VkFormat format);

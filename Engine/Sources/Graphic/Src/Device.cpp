@@ -303,7 +303,7 @@ void TEDevice::DestroyPipelineLayout(VkPipelineLayout pipelineLayout)
     vkDestroyPipelineLayout(_vkDevice, pipelineLayout, nullptr);
 }
 
-VkPipeline TEDevice::CreateGraphicPipeline(VkShaderModule vertexShaderModule, VkShaderModule fragmentShaderModule, VkExtent2D extent, VkPipelineLayout pipelineLayout, VkRenderPass renderPass)
+VkPipeline TEDevice::CreateGraphicPipeline(VkShaderModule vertexShaderModule, VkShaderModule fragmentShaderModule, VkExtent2D extent, const VkVertexInputBindingDescription& bindingDescription,  std::vector<VkVertexInputAttributeDescription> attributeDescriptions, VkPipelineLayout pipelineLayout, VkRenderPass renderPass)
 {
     VkPipelineShaderStageCreateInfo vkVertexShaderStageCreateInfo{};
     vkVertexShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -318,23 +318,6 @@ VkPipeline TEDevice::CreateGraphicPipeline(VkShaderModule vertexShaderModule, Vk
     vkFragmentShaderStageCreateInfo.module = fragmentShaderModule;
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vkVertexShaderStageCreateInfo, vkFragmentShaderStageCreateInfo};
-
-    VkVertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(glm::vec3);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    std::array<VkVertexInputAttributeDescription, 1> attributeDescriptions{};
-
-    attributeDescriptions[0].binding = 0;
-    attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[0].offset = 0;
-
-    // attributeDescriptions[1].binding = 0;
-    // attributeDescriptions[1].location = 1;
-    // attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    // attributeDescriptions[1].offset = offsetof(Vertex, color);
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;

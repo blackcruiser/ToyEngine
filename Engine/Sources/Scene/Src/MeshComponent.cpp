@@ -10,22 +10,22 @@ TEMeshComponent::~TEMeshComponent()
 {
 }
 
-void TEMeshComponent::SetVertices(const std::vector<glm::vec3> &vertices)
+void TEMeshComponent::SetVertices(const std::vector<Vertex> &vertices)
 {
     _vertices = vertices;
 }
 
-const std::vector<glm::vec3> &TEMeshComponent::GetVertices()
+const std::vector<Vertex> &TEMeshComponent::GetVertices()
 {
     return _vertices;
 }
 
-void TEMeshComponent::SetIndexes(const std::vector<int> &indexes)
+void TEMeshComponent::SetIndexes(const std::vector<uint32_t> &indexes)
 {
     _indexes = indexes;
 }
 
-const std::vector<int> &TEMeshComponent::GetIndexes()
+const std::vector<uint32_t> &TEMeshComponent::GetIndexes()
 {
     return _indexes;
 }
